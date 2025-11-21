@@ -7,21 +7,137 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 const createTweet = asyncHandler( async ( req , res ) => {
     //todo : create a new tweet
+    const { content } = req.body;
+
+    if(!content?.trim()){
+        throw new ApiError(400 , "Invalid content")
+    }
+
+    const tweet = await Tweet.create({
+        content : content.trim(),
+        owner : req.user._id
+    })
+
+    return res
+    .status(201)
+    .json(new ApiResponse(201 , tweet , "Tweet created successfully"))
 });
 
 const getUserTweets = asyncHandler( async ( req , res ) => {
-    const { userId } = req.params;  //
     //todo : get all tweets of a user
+    const { userId } = req.params;  //
+
+    if(!isValidObjectId(userId)){
+        throw new ApiError(400 , "Invalid user ID")
+    }
+
+    const userTweets = await Tweet.aggregate([
+        {
+            $match :{
+                owner : new mongoose.Types.ObjectId(userId)
+            }
+        },
+        {
+            $lookup :{
+                from : "users",
+                localField : "owner",
+                foreignField : "_id",
+                as : "owner"
+            }
+        },
+        {
+            $unwind : "$owner"
+        },
+        {
+            $lookup :{
+                from : "likes",
+                localField : "_id",
+                foreignField : "tweet",
+                as : "likes"
+            }
+        },
+        {
+            $addFields :{
+                likeCount : { $size : "$likes"},
+                owner :{
+                    _id : "$owner._id",
+                    username : "$owner.username",
+                    avatar : "$owner.avatar",
+                    fullName : "$owner.fullName"
+                }
+            }
+        },
+        {
+            $project :{
+                content : 1,
+                owner : 1,
+                likeCount : 1,
+                createdAt : 1,
+                updatedAt : 1
+            }
+        },
+        {
+            $sort :{ createdAt : -1 }   //newest tweets first
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200 , userTweets , "User tweets fetched successfully"))
 });
 
 const updateTweet = asyncHandler( async ( req , res ) => {
-    const { tweetId } = req.params; //
     //todo : update tweet details
+    const { tweetId } = req.params; //
+    const { content } = req.body;
+    const userId = req.user._id
+
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(400 , "Invalid tweet ID")
+    }
+
+    if(!content?.trim()){
+        throw new ApiError(400 , "Tweet content is required")
+    }
+
+    const tweet = await Tweet.findOneAndUpdate(
+        {
+            _id : tweetId , owner : userId   // only owner can update
+        },
+        { $set :{ content : content.trim() } },
+        { new : true }
+    )
+
+    if(!tweet){
+        throw new ApiError ( 404 , "Tweet not found")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200 , tweet , "Tweet updated successfully"))
 });
 
 const deleteTweet = asyncHandler( async ( req , res ) => {
-    const { tweetId } = req.params; //
     //todo : delete a tweet
+    const { tweetId } = req.params; //
+    const userId = req.user._id
+
+    if(!isValidObjectId(tweetId)){
+        throw new ApiError(400 , "Invalid tweet ID")
+    }
+
+    const tweet = await Tweet.findOneAndDelete({
+        _id : tweetId,
+        owner : userId           //only owner can delete
+    })
+
+    if(!tweet){
+        throw new ApiError(404 , "Tweet not found")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200 , tweet , "Tweet deleted successfully"))
 });
 
 export {
