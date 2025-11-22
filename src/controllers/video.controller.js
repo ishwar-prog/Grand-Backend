@@ -75,7 +75,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
     page = 1,
     limit = 10,
     query = "",
-    sortBy = "createdAr",
+    sortBy = "createdAt",
     sortType = "desc",
     userId,
   } = req.query;
@@ -84,7 +84,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User ID is required");
   }
 
-  if (!isValidObjectId) {
+  if (!isValidObjectId(userId)) {
     throw new ApiError(400, "Invalid user ID");
   }
 
@@ -180,7 +180,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     ? await uploadToCloudinary(thumbnailLocalPath)
     : null;
 
-  const video = await video.create({
+  const video = await Video.create({
     videoFile: videoFile.url,
     thumbnail: thumbnail?.url || "",
     owner: req.user._id,
@@ -216,7 +216,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     ),
   ]);
 
-  const video = await video.aggregate([
+  const video = await Video.aggregate([
     {
       $match: { _id: new mongoose.Types.ObjectId(videoId) },
     },
@@ -341,7 +341,6 @@ const updateVideo = asyncHandler(async (req, res) => {
       $set: {
         ...(title && { title: title.trim() }),
         ...(description && { description: description.trim() }),
-        ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
         ...(thumbnailUrl && { thumbnail: thumbnailUrl }),
       },
     },
