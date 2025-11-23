@@ -40,15 +40,15 @@ const registerUser = asyncHandler(async (req, res) => {
 
   //Advance method but short
   if (
-    [fullName, email, username, password].some((field) =>!field?.trim()) //field?.trim() === "")
+    [fullName, email, username, password].some((field) => !field?.trim()) //field?.trim() === "")
   ) {
     throw new ApiError(400, "All fields are required");
   }
 
   const existedUser = await User.findOne({
     $or: [
-      { username: username.toLowerCase().trim() },          //fixed case sensitivity
-      { email: email.toLowerCase().trim() }
+      { username: username.toLowerCase().trim() }, //fixed case sensitivity
+      { email: email.toLowerCase().trim() },
     ],
   });
   if (existedUser) {
@@ -56,12 +56,15 @@ const registerUser = asyncHandler(async (req, res) => {
   }
   //console.log("req.files:" , req.files);
 
-  const avatarLocalPath = req.files?.avatar?.[0]?.path;      //fixed safer optional chaining
+  const avatarLocalPath = req.files?.avatar?.[0]?.path; //fixed safer optional chaining
   //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
   let coverImageLocalPath;
-  if (       //
-    req.files?.coverImage?.length > 0){         //fixed : Simplified array check 
+  if (
+    //
+    req.files?.coverImage?.length > 0
+  ) {
+    //fixed : Simplified array check
     coverImageLocalPath = req.files.coverImage[0].path;
   }
 
@@ -69,15 +72,17 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar is required");
   }
 
-  const avatar = await uploadToCloudinary(avatarLocalPath);          //fixed : Correct function name
-  const coverImage = coverImageLocalPath ? await uploadToCloudinary(coverImageLocalPath) : null;      //fixed : Conditonal upload
+  const avatar = await uploadToCloudinary(avatarLocalPath); //fixed : Correct function name
+  const coverImage = coverImageLocalPath
+    ? await uploadToCloudinary(coverImageLocalPath)
+    : null; //fixed : Conditonal upload
 
-  if (!avatar?.url) {
+  if (!avatar || !avatar.url) {
     throw new ApiError(500, "Unable to upload avatar");
   }
 
   const user = await User.create({
-    fullName: fullName.trim(),        //fixed : trim inputs
+    fullName: fullName.trim(), //fixed : trim inputs
     email: email.toLowerCase().trim(),
     username: username.toLowerCase().trim(),
     avatar: avatar.url,
@@ -117,8 +122,8 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [
       { username: username?.toLowerCase().trim() },
-       { email: email?.toLowerCase().trim() }
-      ],
+      { email: email?.toLowerCase().trim() },
+    ],
   });
 
   if (!user) {
@@ -140,8 +145,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",             //fixed : conditional  secure (dev :false , prod : true)
-    sameSite: "strict"                                  //added : CSRF protection
+    secure: process.env.NODE_ENV === "production", //fixed : conditional  secure (dev :false , prod : true)
+    sameSite: "strict", //added : CSRF protection
   };
   return res
     .status(200)
@@ -164,7 +169,7 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-     $unset: { refreshToken: "" },
+      $unset: { refreshToken: "" },
     },
     {
       new: true,
@@ -172,8 +177,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   );
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",             //fixed : conditional  secure (dev :false , prod : true)
-    sameSite: "strict"                                  //added : CSRF protection
+    secure: process.env.NODE_ENV === "production", //fixed : conditional  secure (dev :false , prod : true)
+    sameSite: "strict", //added : CSRF protection
   };
   return res
     .status(200)
@@ -208,8 +213,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const options = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",       //fixed : conditional secure
-      sameSite: "strict"                                  //added : CSRF protection
+      secure: process.env.NODE_ENV === "production", //fixed : conditional secure
+      sameSite: "strict", //added : CSRF protection
     };
 
     const { accessToken, newRefreshToken } =
@@ -233,11 +238,30 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
+  //<
+  if (!oldPassword || !newPassword) {
+    throw new ApiError(400, "Old password and new password are required");
+  }
+
+  if (oldPassword === newPassword) {
+    throw new ApiError(
+      400,
+      "New password should be different from old password"
+    );
+  }
+  //>
   const user = await User.findById(req.user?._id);
+
+  //<
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  //>
+
   const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
   if (!isPasswordCorrect) {
-    throw new ApiError(400, " Inavlid old password");
+    throw new ApiError(400, "Invalid old password");
   }
 
   user.password = newPassword;
@@ -257,7 +281,8 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
 
-  if (!fullName?.trim() && !email?.trim()) {                 //allow partial updates 
+  if (!fullName?.trim() && !email?.trim()) {
+    //allow partial updates
     throw new ApiError(400, " At least one field is required");
   }
 
@@ -272,7 +297,8 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
-  if(!user){                                                   //safety check
+  if (!user) {
+    //safety check
     throw new ApiError(404, "User not found");
   }
 
@@ -372,7 +398,14 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         channelsSubscribedToCount: { $size: "$subscribedTo" },
         isSubscribed: {
           $cond: {
-            if: { $in: [new mongoose.Types.ObjectId(req.user?._id), "$subscribers.subscriber"] },
+            if: req.user?._id
+              ? {
+                  $in: [
+                    new mongoose.Types.ObjectId(req.user._id),
+                    "$subscribers.subscriber",
+                  ],
+                }
+              : false,
             then: true,
             else: false,
           },
@@ -380,7 +413,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
     {
-      $project: {                       //removed email for privacy
+      $project: {
+        //removed email for privacy
         fullName: 1,
         username: 1,
         subscribersCount: 1,
@@ -443,27 +477,27 @@ const getWatchHistory = asyncHandler(async (req, res) => {
           },
           {
             //added : project useful video fields
-            $project :{
-              title : 1,
-              thumbnail : 1,
-              views : 1,
-              createdAt : 1,
-              owner :{
-                fullName : "$owner.fullName",
-                username : "$owner.username",
-                avatar : "$owner.avatar"
-              }
-            }
-          }
+            $project: {
+              title: 1,
+              thumbnail: 1,
+              views: 1,
+              createdAt: 1,
+              owner: {
+                fullName: "$owner.fullName",
+                username: "$owner.username",
+                avatar: "$owner.avatar",
+              },
+            },
+          },
         ],
       },
     },
     {
-      //clean output 
-      $project :{
-        watchHistory : 1
-      }
-    }
+      //clean output
+      $project: {
+        watchHistory: 1,
+      },
+    },
   ]);
 
   return res

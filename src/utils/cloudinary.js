@@ -11,8 +11,8 @@ cloudinary.config({
 
 const uploadToCloudinary = async (localfilepath)=>{
     try{                  //
-        if(!localfilepath || fs.existsSync(localfilepath)){
-            return null  //
+        if (!localfilepath || !fs.existsSync(localfilepath)) {
+            return null;
         }
         //upload file on Cloudinary
         const response = await cloudinary.uploader.upload(localfilepath,{
@@ -24,8 +24,8 @@ const uploadToCloudinary = async (localfilepath)=>{
         //Successfully uploaded -> remove local file 
         await fs.promises.unlink(localfilepath)
 
-        //file has benn uploaded successfull
-       console.log("File uploaded on Cloudinary successfully", response.url);
+        //file has been uploaded successfully
+        console.log("File uploaded on Cloudinary successfully", response.url);
         return response;
 
     // }catch(error){ 
@@ -43,7 +43,7 @@ const uploadToCloudinary = async (localfilepath)=>{
         }catch(unlinkError){
             console.error("Failed to delete local file", unlinkError.message);
         }
-        console.error("Failed to upload file to Cloudinary", unlinkError.message);
+        console.error("Failed to upload file to Cloudinary", error.message);
         return null;
     }
 }
@@ -55,28 +55,37 @@ const uploadToCloudinary = async (localfilepath)=>{
 
     const deleteOnCloudinary = async(fileUrl , resourceType = "image") =>{
         try{
-            if(!fileUrl){
-                throw new ApiError(400 , "File Url is required")
+                if(!fileUrl){
+                    throw new ApiError(400 , "File Url is required")
+                }
+
+                // extract public_id from the Cloudinary url
+                const uploadIndex = fileUrl.indexOf('/upload/');
+                if (uploadIndex === -1) {
+                    throw new ApiError(400, "Invalid Cloudinary file URL");
+                }
+
+                let publicIdWithVersionAndExt = fileUrl.substring(uploadIndex + '/upload/'.length).split('?')[0];
+                // remove version prefix if present: v123/
+                publicIdWithVersionAndExt = publicIdWithVersionAndExt.replace(/^v\d+\//, '');
+                // remove file extension
+                const publicId = publicIdWithVersionAndExt.replace(/\.[^/.]+$/, '');
+
+                const result = await cloudinary.uploader.destroy(publicId , {
+                    resource_type: resourceType,
+                    invalidate: true,   //remove from CDN cache
+                })
+
+                if(result.result !== "ok" && result.result !== "not found"){
+                    throw new ApiError(500 , "Failed to delete file from Cloudinary")
+                }
+
+                console.log(`Deleted from cloudinary: ${publicId}`)
+                return true;
+            }catch(error){
+                console.error("Cloudinary delete error", error.message);
+                throw error instanceof ApiError ? error : new ApiError(500 , "Failed to delete file from Cloudinary")
             }
-
-            //extract public_id from url
-            const publicId = publicIdMatch[1]    
-
-            const result = await cloudinary.uploader.destroy(publicId , {
-                resource_type: resourceType,
-                invalidate: true,   //reomve from CDN cache
-            })
-
-            if(result.result !== "ok" && result.result !== "not found"){
-                throw new ApiError(500 , "Failed to delete file from Cloudinary")
-            }
-
-            console.log(`Deelted from cloudinary: ${publicId}`)
-            return true;
-        }catch(error){
-            console.error("Cloudinary delete error", error.message);
-            throw error instanceof ApiError ? error : new ApiError(500 , "Failed to delete file from Cloudinary")
-        }
     }
 
 
