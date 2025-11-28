@@ -41,7 +41,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         _id: 1,
         title: 1,
         thumbnail: 1,
-        view: { $ifNull: ["$views", 0] }, //views is number
+        views: { $ifNull: ["$views", 0] }, //views is number
         duration: 1,
         isPublished: 1,
         "channel._id": 1,
@@ -160,15 +160,15 @@ const publishAVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Title is required");
   }
 
-  const videoLocalPath = req.file?.videoFile?.[0]?.path;
+  const videoLocalPath = req.files?.videoFile?.[0]?.path;
 
   if (!videoLocalPath) {
     throw new ApiError(400, "Video file is required");
   }
 
   let thumbnailLocalPath;
-  if (req.file?.thumbnail?.length > 0) {
-    thumbnailLocalPath = req.file.thumbnail[0].path;
+  if (req.files?.thumbnail?.length > 0) {
+    thumbnailLocalPath = req.files.thumbnail[0].path;
   }
 
   const videoFile = await uploadToCloudinary(videoLocalPath);
@@ -206,7 +206,8 @@ const getVideoById = asyncHandler(async (req, res) => {
   await Promise.all([
     Video.findByIdAndUpdate(
       videoId,
-      { $addToSet: { views: req.user._id } },
+      // { $addToSet: { views: req.user._id } },
+      { $inc: { views: 1 } },
       { new: true }
     ),
     User.findByIdAndUpdate(
@@ -250,7 +251,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     {
       $addFields: {
         likeCount: { $size: "$likes" },
-        viewsCount: { $size: "$views" }, //views is array of user ids
+        viewsCount: { $ifNull: ["$views", 0] }, //views is array of user ids
         channel: {
           _id: "$channel._id",
           username: "$channel.username",
@@ -312,8 +313,8 @@ const updateVideo = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid video ID");
   }
 
-  if (!title?.trim()) {
-    throw new ApiError(400, "Title is required");
+  if (!title && !description && !req.file) {
+    throw new ApiError(400, "At least one field is required");
   }
 
   let thumbnailUrl = null;
@@ -393,11 +394,13 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
   const updatedVideo = await Video.findOneAndUpdate(
     { _id: videoId, owner: userId },
-    {
-      $bit: {
-        isPublished: { xor: 1 }, //toggle boolean (0/1)
+    [
+      {
+        $set: {
+          isPublished: { $not: "$isPublished" },
+        },
       },
-    },
+    ],
     { new: true }
   );
 

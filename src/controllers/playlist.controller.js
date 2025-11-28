@@ -48,22 +48,22 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid playlist id");
   }
 
-  const playlist = await Playlist.aggregrate([
+  const playlist = await Playlist.aggregate([
     {
       $match: { _id: new mongoose.Types.ObjectId(playlistId) },
     },
     {
       $lookup: {
         from: "videos",
-        localfield: "videos",
-        foreignfield: "_id",
+        localField: "videos",
+        foreignField: "_id",
         as: "videos",
         pipeline: [
           {
             $lookup: {
               from: "users",
-              localfield: "owner",
-              foreignfield: "_id",
+              localField: "owner",
+              foreignField: "_id",
               as: "owner",
             },
           },
@@ -98,8 +98,8 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     {
       $lookup: {
         from: "users",
-        loaclfield: "owner",
-        foreignfield: "_id",
+        localField: "owner",
+        foreignField: "_id",
         as: "owner",
       },
     },
@@ -107,9 +107,9 @@ const getPlaylistById = asyncHandler(async (req, res) => {
       $unwind: "$owner",
     },
     {
-      $addfields: {
+      $addFields: {
         totalVideos: { $size: "$videos" },
-        totalDuration: { $sum: "$videos. duration" },
+        totalDuration: { $sum: "$videos.duration" },
       },
     },
     {
@@ -117,7 +117,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         name: 1,
         description: 1,
         totalVideos: 1,
-        totalduration: 1,
+        totalDuration: 1,
         createdAt: 1,
         updatedAt: 1,
         owner: {
