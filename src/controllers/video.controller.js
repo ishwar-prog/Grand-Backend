@@ -19,12 +19,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   const limitNumber = parseInt(limit);
   const sortDirection = sortType === "asc" ? 1 : -1;
 
-  const matchStage = query ? { title: { $regex: query, $options: "i" } } : {};
-
   const aggregatePipleline = [
-    {
-      $match: matchStage,
-    },
     {
       $lookup: {
         from: "users",
@@ -36,6 +31,19 @@ const getAllVideos = asyncHandler(async (req, res) => {
     {
       $unwind: "$channel",
     },
+    // Search filter: match video title OR channel username
+    ...(query
+      ? [
+          {
+            $match: {
+              $or: [
+                { title: { $regex: query, $options: "i" } },
+                { "channel.username": { $regex: query, $options: "i" } },
+              ],
+            },
+          },
+        ]
+      : []),
     {
       $project: {
         _id: 1,
@@ -92,13 +100,10 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
   const limitNumber = parseInt(limit);
   const sortDirection = sortType === "asc" ? 1 : -1;
 
-  const matchStage = query ? { title: { $regex: query, $options: "i" } } : {};
-
   const aggregatePipeline = [
     {
       $match: {
         owner: new mongoose.Types.ObjectId(userId),
-        ...matchStage,
       },
     },
     {
@@ -112,6 +117,19 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
     {
       $unwind: "$channel",
     },
+    // Search filter: match video title OR channel username
+    ...(query
+      ? [
+          {
+            $match: {
+              $or: [
+                { title: { $regex: query, $options: "i" } },
+                { "channel.username": { $regex: query, $options: "i" } },
+              ],
+            },
+          },
+        ]
+      : []),
     {
       $addFields: {
         views: { $ifNull: ["$views", 0] },
