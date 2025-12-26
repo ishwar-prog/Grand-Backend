@@ -68,24 +68,24 @@ const registerUser = asyncHandler(async (req, res) => {
     coverImageLocalPath = req.files.coverImage[0].path;
   }
 
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar is required");
-  }
+//   if (!avatarLocalPath) {
+//     throw new ApiError(400, "Avatar is required");
+//   }
 
   const avatar = await uploadToCloudinary(avatarLocalPath); //fixed : Correct function name
   const coverImage = coverImageLocalPath
     ? await uploadToCloudinary(coverImageLocalPath)
     : null; //fixed : Conditonal upload
 
-  if (!avatar || !avatar.url) {
-    throw new ApiError(500, "Unable to upload avatar");
-  }
+//   if (!avatar || !avatar.url) {
+//     throw new ApiError(500, "Unable to upload avatar");
+//   }
 
   const user = await User.create({
     fullName: fullName.trim(), //fixed : trim inputs
     email: email.toLowerCase().trim(),
     username: username.toLowerCase().trim(),
-    avatar: avatar.url,
+    avatar: avatar?.url || "https://example.com/dummy-avatar.png",
     coverImage: coverImage?.url || "",
     password,
   });
