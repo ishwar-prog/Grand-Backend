@@ -7,6 +7,8 @@ import { cn } from '../../utils/cn';
 
 const VideoCard = ({ video, className }) => {
   if (!video) return null;
+  
+  const owner = video.owner || video.channel;
 
   return (
     <motion.div
@@ -41,11 +43,11 @@ const VideoCard = ({ video, className }) => {
       {/* Info */}
       <div className="flex gap-3 items-start">
         {/* Avatar (Optional, if not on channel page) */}
-        {video.owner?.avatar && (
-          <Link to={`/channel/${video.owner.username}`} className="flex-shrink-0 mt-0.5">
+        {owner?.avatar && (
+          <Link to={`/channel/${owner.username}`} className="flex-shrink-0 mt-0.5">
             <img
-              src={getAvatarUrl(video.owner.avatar)}
-              alt={video.owner.username}
+              src={getAvatarUrl(owner.avatar)}
+              alt={owner.username}
               className="w-9 h-9 rounded-full object-cover bg-[#1c1c1e]"
             />
           </Link>
@@ -59,9 +61,9 @@ const VideoCard = ({ video, className }) => {
           </Link>
           
           <div className="flex flex-col text-xs text-gray-400">
-            {video.owner?.fullName && (
-              <Link to={`/channel/${video.owner.username}`} className="hover:text-gray-300 transition-colors">
-                {video.owner.fullName}
+            {owner?.fullName && (
+              <Link to={`/channel/${owner.username}`} className="hover:text-gray-300 transition-colors">
+                {owner.fullName}
               </Link>
             )}
             <div className="flex items-center gap-1">

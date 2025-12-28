@@ -2,7 +2,7 @@ import api from "./api";
 
 // Get user watch history
 export const getWatchHistory = async () => {
-    const { data } = await api.get("/users/history");
+    const { data } = await api.get("/users/watch-history");
     return data;
 };
 

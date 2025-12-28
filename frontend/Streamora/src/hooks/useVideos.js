@@ -1,17 +1,20 @@
+import { useSearchParams } from "react-router-dom";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { getAllVideos, getVideoById, publishVideo, updateVideo, deleteVideo, togglePublishStatus } from "../services/videoService";
 import { toggleVideoLike } from "../services/likeService";
 import useAuthStore from "../store/authStore";
 
 const useVideos = (options = {}) => {
-  const { autoFetch = true, initialQuery = "", initialLimit = 12 } = options;
+  const { autoFetch = true, initialLimit = 12, initialSortBy = "views" } = options;
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get("query") || "";
   const currentUser = useAuthStore((s) => s.user);
 
   const [videos, setVideos] = useState([]);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [loading, setLoading] = useState({ list: false, single: false, action: false });
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({ query: initialQuery, sortBy: "createdAt", sortType: "desc" });
+  const [filters, setFilters] = useState({ query: initialQuery, sortBy: initialSortBy, sortType: "desc" });
   const [pagination, setPagination] = useState({ page: 1, limit: initialLimit, hasMore: true, total: 0 });
 
   const abortRef = useRef(null);
@@ -144,7 +147,7 @@ const useVideos = (options = {}) => {
       const res = await toggleVideoLike(videoId);
       const update = (v) =>
         v._id === videoId
-          ? { ...v, isLiked: res?.data?.isLiked, likeCount: (v.likeCount || 0) + (res?.data?.isLiked ? 1 : -1) }
+          ? { ...v, isLiked: res?.data?.isLiked, likesCount: (v.likesCount || 0) + (res?.data?.isLiked ? 1 : -1) }
           : v;
 
       setVideos((prev) => prev.map(update));

@@ -1,5 +1,8 @@
 import mongoose, { isValidObjectId } from "mongoose";
 import { Like } from "../models/like.model.js";
+import { Video } from "../models/video.model.js";
+import { Comment } from "../models/comment.model.js";
+import { Notification } from "../models/notification.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -30,6 +33,18 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
       video: videoId,
       likedBy: userId,
     });
+
+    // Notify Video Owner
+    const video = await Video.findById(videoId);
+    if (video && video.owner.toString() !== userId.toString()) {
+      await Notification.create({
+        recipient: video.owner,
+        sender: userId,
+        type: "LIKE",
+        video: videoId
+      });
+    }
+
     return res
       .status(200)
       .json(
@@ -64,6 +79,19 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
       comment: commentId,
       likedBy: userId,
     });
+
+    // Notify Comment Owner
+    const comment = await Comment.findById(commentId);
+    if (comment && comment.owner.toString() !== userId.toString()) {
+      await Notification.create({
+        recipient: comment.owner,
+        sender: userId,
+        type: "LIKE",
+        comment: commentId,
+        video: comment.video // Assuming comment has video reference
+      });
+    }
+
     return res
       .status(200)
       .json(

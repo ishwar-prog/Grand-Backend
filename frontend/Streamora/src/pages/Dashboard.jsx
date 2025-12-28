@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  LayoutDashboard, 
   Users, 
   Eye, 
   Heart, 
   Plus, 
   Pencil, 
   Trash2, 
-  MoreVertical,
-  ToggleLeft,
-  ToggleRight
+  X
 } from 'lucide-react';
 import { getChannelStats, getChannelVideos } from '../services/dashboardService';
-import { deleteVideo, togglePublishStatus } from '../services/videoService';
+import { deleteVideo, togglePublishStatus, updateVideo } from '../services/videoService';
 import VideoUploadModal from '../components/layout/VideoUploadModal';
 import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import { formatDuration, formatTimeAgo } from '../utils/formatters';
 import toast from 'react-hot-toast';
 
@@ -41,6 +39,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  
+  // Video edit state
+  const [editingVideo, setEditingVideo] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -86,6 +90,41 @@ const Dashboard = () => {
       toast.success(`Video ${!currentStatus ? 'published' : 'unpublished'}`);
     } catch (error) {
       toast.error("Failed to update status");
+    }
+  };
+
+  const handleStartEdit = (video) => {
+    setEditingVideo(video);
+    setEditTitle(video.title);
+    setEditDescription(video.description || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVideo(null);
+    setEditTitle('');
+    setEditDescription('');
+  };
+
+  const handleUpdateVideo = async () => {
+    if (!editingVideo || !editTitle.trim()) return;
+    
+    setIsUpdating(true);
+    try {
+      await updateVideo(editingVideo._id, {
+        title: editTitle.trim(),
+        description: editDescription.trim()
+      });
+      setVideos(prev => prev.map(v => 
+        v._id === editingVideo._id 
+          ? { ...v, title: editTitle.trim(), description: editDescription.trim() }
+          : v
+      ));
+      toast.success("Video updated successfully");
+      handleCancelEdit();
+    } catch (error) {
+      toast.error("Failed to update video");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -197,7 +236,10 @@ const Dashboard = () => {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <button className="p-2 hover:bg-[#27272a] text-gray-400 hover:text-white rounded-lg transition-colors">
+                      <button 
+                        onClick={() => handleStartEdit(video)}
+                        className="p-2 hover:bg-[#27272a] text-gray-400 hover:text-white rounded-lg transition-colors"
+                      >
                         <Pencil className="w-4 h-4" />
                       </button>
                     </div>
@@ -221,6 +263,59 @@ const Dashboard = () => {
         onClose={() => setIsUploadModalOpen(false)} 
         onUploadSuccess={fetchData}
       />
+
+      {/* Edit Video Modal */}
+      {editingVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#1c1c1e] rounded-3xl p-6 w-full max-w-md border border-[#27272a]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Edit Video</h3>
+              <button 
+                onClick={handleCancelEdit}
+                className="p-2 hover:bg-[#27272a] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Title</label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Video title"
+                  className="w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Video description"
+                  rows={4}
+                  className="w-full px-4 py-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="ghost" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateVideo}
+                isLoading={isUpdating}
+                disabled={!editTitle.trim()}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

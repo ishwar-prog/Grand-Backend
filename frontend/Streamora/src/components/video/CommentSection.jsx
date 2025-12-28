@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MoreVertical, ThumbsUp, Trash2 } from 'lucide-react';
+import { ThumbsUp, Pencil, Trash2, X, Check } from 'lucide-react';
 import useComments from '../../hooks/useComments';
 import useAuth from '../../hooks/useAuth';
 import Button from '../ui/Button';
@@ -16,7 +15,9 @@ const CommentSection = ({ videoId }) => {
     comments, 
     loading, 
     addComment, 
+    updateComment,
     deleteComment,
+    toggleLike,
     totalComments 
   } = useComments(videoId);
   
@@ -81,6 +82,8 @@ const CommentSection = ({ videoId }) => {
             comment={comment} 
             currentUser={user}
             onDelete={() => deleteComment(comment._id)}
+            onToggleLike={() => toggleLike(comment._id)}
+            onUpdate={(content) => updateComment(comment._id, content)}
           />
         ))}
         
@@ -94,8 +97,34 @@ const CommentSection = ({ videoId }) => {
   );
 };
 
-const CommentItem = ({ comment, currentUser, onDelete }) => {
+const CommentItem = ({ comment, currentUser, onDelete, onToggleLike, onUpdate }) => {
   const isOwner = currentUser?._id === comment.owner?._id;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim() || editContent === comment.content) {
+      setIsEditing(false);
+      setEditContent(comment.content);
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      await onUpdate(editContent);
+      setIsEditing(false);
+    } catch {
+      // Keep editing mode on error
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent(comment.content);
+  };
 
   return (
     <div className="flex gap-4 group">
@@ -114,32 +143,75 @@ const CommentItem = ({ comment, currentUser, onDelete }) => {
           <span>{formatTimeAgo(comment.createdAt)}</span>
         </div>
 
-        <p className="text-sm text-gray-200 whitespace-pre-wrap">
-          {comment.content}
-        </p>
+        {isEditing ? (
+          <div className="flex flex-col gap-2 mt-1">
+            <Input
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="bg-transparent border-b border-[#27272a] rounded-none px-0 focus:ring-0 focus:border-white"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 transition-colors"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-200 whitespace-pre-wrap">
+            {comment.content}
+          </p>
+        )}
 
         <div className="flex items-center gap-4 mt-1">
-          <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors">
-            <ThumbsUp className="w-3.5 h-3.5" />
+          <button 
+            onClick={onToggleLike}
+            className={cn(
+              "flex items-center gap-1 text-xs transition-colors",
+              comment.isLiked 
+                ? "text-purple-400 hover:text-purple-300" 
+                : "text-gray-400 hover:text-white"
+            )}
+          >
+            <ThumbsUp className={cn("w-3.5 h-3.5", comment.isLiked && "fill-current")} />
             <span>{comment.likesCount || 0}</span>
           </button>
           
-          {isOwner && (
-            <button 
-              onClick={onDelete}
-              className="text-xs text-gray-400 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-            >
-              Delete
-            </button>
+          {isOwner && !isEditing && (
+            <>
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit
+              </button>
+              <button 
+                onClick={onDelete}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete
+              </button>
+            </>
           )}
         </div>
       </div>
-
-      <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#27272a] rounded-full transition-all">
-        <MoreVertical className="w-4 h-4 text-gray-400" />
-      </button>
     </div>
   );
 };
 
 export default CommentSection;
+

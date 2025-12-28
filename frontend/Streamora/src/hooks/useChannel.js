@@ -38,10 +38,11 @@ const useChannel = (username) => {
     try {
       setLoading((l) => ({ ...l, videos: true }));
       const res = await getUserVideos(channel._id, { page, limit: 12 });
-      const newVideos = res?.data?.videos || [];
+      // Backend returns paginated result with 'docs' array
+      const newVideos = res?.data?.docs || res?.data?.videos || [];
       
       setVideos((prev) => reset ? newVideos : [...prev, ...newVideos]);
-      setPagination({ page, hasMore: newVideos.length === 12 });
+      setPagination({ page, hasMore: res?.data?.hasNextPage ?? newVideos.length === 12 });
     } catch (err) {
       console.error("Failed to fetch videos:", err);
     } finally {

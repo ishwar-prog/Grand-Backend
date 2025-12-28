@@ -1,24 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, Share2, Bookmark, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share2, Bookmark, Sparkles } from 'lucide-react';
 import SubscribeButton from '../channel/SubscribeButton';
 import Button from '../ui/Button';
 import { formatViews, formatTimeAgo, formatSubscribers, getAvatarUrl } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
+import AddToPlaylistModal from './AddToPlaylistModal';
+import { getUserPlaylists } from '../../services/playlistService';
+import useAuthStore from '../../store/authStore';
 
 const VideoInfo = ({ 
   video, 
   channel, 
   isSubscribed, 
+  subscribeLoading,
   onToggleSubscribe, 
   onToggleLike,
   isLiked,
-  likeCount
+  likeCount,
+  onAnalyzeMood,
+  isAnalyzing
 }) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const user = useAuthStore(state => state.user);
+
+  // Check if video is in any playlist to set Saved state
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (user?._id && video?._id) {
+        try {
+          const res = await getUserPlaylists(user._id);
+          const playlists = res.data || res || [];
+          // Check if video ID exists in any playlist's videos array
+          // Note: Backend might return populated videos or just IDs. 
+          // If populated, v._id. If ID, v.
+          const isVideoSaved = playlists.some(p => 
+            p.videos?.some(v => (v._id === video._id || v === video._id))
+          );
+          setIsSaved(isVideoSaved);
+        } catch (err) {
+          console.error("Failed to check saved status", err);
+        }
+      }
+    };
+    checkSavedStatus();
+  }, [user?._id, video?._id, isPlaylistModalOpen]); // Re-check when modal closes/changes
 
   if (!video) return <VideoInfoSkeleton />;
+
+  // Normalized owner object
+  const owner = video.owner || video.channel;
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,19 +65,19 @@ const VideoInfo = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Channel Info */}
         <div className="flex items-center gap-4">
-          <Link to={`/channel/${video.owner?.username}`} className="flex-shrink-0">
+          <Link to={`/channel/${owner?.username}`} className="flex-shrink-0">
             <img 
-              src={getAvatarUrl(video.owner?.avatar)} 
-              alt={video.owner?.username} 
+              src={getAvatarUrl(owner?.avatar)} 
+              alt={owner?.username} 
               className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover bg-[#27272a]"
             />
           </Link>
           <div className="flex flex-col">
             <Link 
-              to={`/channel/${video.owner?.username}`}
+              to={`/channel/${owner?.username}`}
               className="font-semibold text-white hover:text-gray-300 transition-colors"
             >
-              {video.owner?.fullName}
+              {owner?.fullName}
             </Link>
             <span className="text-xs text-gray-400">
               {formatSubscribers(channel?.subscribersCount || 0)}
@@ -52,7 +86,8 @@ const VideoInfo = ({
           <div className="ml-2">
             <SubscribeButton 
               isSubscribed={isSubscribed} 
-              onToggle={onToggleSubscribe} 
+              onToggle={onToggleSubscribe}
+              loading={subscribeLoading}
             />
           </div>
         </div>
@@ -73,7 +108,7 @@ const VideoInfo = ({
             </Button>
             <div className="w-[1px] h-6 bg-[#3f3f46]" />
             <Button variant="ghost" className="rounded-r-full px-4 hover:bg-[#3f3f46]">
-              <ThumbsUp className="w-5 h-5 rotate-180" />
+              <ThumbsDown className="w-5 h-5" />
             </Button>
           </div>
 
@@ -82,13 +117,26 @@ const VideoInfo = ({
             <span>Share</span>
           </Button>
 
-          <Button variant="secondary" className="rounded-full gap-2">
-            <Bookmark className="w-5 h-5" />
+          <Button 
+            variant="secondary" 
+            className={cn(
+              "rounded-full gap-2",
+              isSaved && "text-purple-500 bg-purple-500/10 border-purple-500/20"
+            )}
+            onClick={() => setIsPlaylistModalOpen(true)}
+          >
+            <Bookmark className={cn("w-5 h-5", isSaved && "fill-current")} />
             <span>Save</span>
           </Button>
 
-          <Button variant="secondary" size="icon" className="rounded-full">
-            <MoreHorizontal className="w-5 h-5" />
+          <Button 
+            variant="secondary" 
+            className="rounded-full gap-2"
+            onClick={onAnalyzeMood}
+            disabled={isAnalyzing}
+          >
+            <Sparkles className={cn("w-5 h-5", isAnalyzing && "animate-pulse text-purple-500")} />
+            <span>{isAnalyzing ? "Analyzing..." : "Mood"}</span>
           </Button>
         </div>
       </div>
@@ -116,6 +164,12 @@ const VideoInfo = ({
           {isDescriptionExpanded ? 'Show less' : '...more'}
         </button>
       </motion.div>
+
+      <AddToPlaylistModal 
+        isOpen={isPlaylistModalOpen}
+        onClose={() => setIsPlaylistModalOpen(false)}
+        videoId={video._id}
+      />
     </div>
   );
 };

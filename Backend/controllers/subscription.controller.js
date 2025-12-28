@@ -4,6 +4,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+import { Notification } from "../models/notification.model.js";
+
 const toggleSubscription = asyncHandler(async (req, res) => {
   //todo : toggle subscription to a channel
   const { channelId } = req.params;
@@ -26,6 +28,14 @@ const toggleSubscription = asyncHandler(async (req, res) => {
   if (existingSubscription) {
     //Unsubscribe
     await Subscription.deleteOne({ _id: existingSubscription._id });
+    
+    // Delete notification if it exists (optional)
+    await Notification.findOneAndDelete({
+      recipient: channelId,
+      sender: userId,
+      type: "SUBSCRIBE"
+    });
+
     return res
       .status(200)
       .json(
@@ -41,6 +51,14 @@ const toggleSubscription = asyncHandler(async (req, res) => {
       subscriber: userId,
       channel: channelId,
     });
+
+    // Create Notification
+    await Notification.create({
+      recipient: channelId,
+      sender: userId,
+      type: "SUBSCRIBE"
+    });
+
     return res
       .status(200)
       .json(
@@ -96,7 +114,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 });
 
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-  //todo : get all channels the user is subscribed to
+  // get all channels the user is subscribed to
   const userId = req.user._id;
 
   const subscribedChannels = await Subscription.aggregate([
@@ -114,8 +132,19 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
       },
     },
     {
+      $unwind: "$channel",
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "channel._id",
+        foreignField: "channel",
+        as: "channelSubscribers",
+      },
+    },
+    {
       $addFields: {
-        "channel.subscriberCount": { $size: "$channel.subscribers" },
+        "channel.subscriberCount": { $size: "$channelSubscribers" },
         "channel.isSubscribed": true,
         subscribedAt: "$createdAt",
       },
@@ -126,7 +155,6 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         username: "$channel.username",
         avatar: "$channel.avatar",
         fullName: "$channel.fullName",
-        avatar: "$channel.avatar",
         subscriberCount: "$channel.subscriberCount",
         subscribedAt: 1,
       },
@@ -142,7 +170,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         subscribedChannels,
-        "Subscibed Channels fetched Successfully"
+        "Subscribed Channels fetched Successfully"
       )
     );
 });

@@ -15,6 +15,7 @@ import useAuth from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import VideoUploadModal from './VideoUploadModal';
+import NotificationDropdown from './NotificationDropdown';
 import { getAvatarUrl } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 
@@ -89,10 +90,7 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
                 <Upload className="w-5 h-5" />
               </Button>
               
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0f0f10]" />
-              </Button>
+              <NotificationDropdown />
 
               <div className="relative">
                 <motion.button
@@ -134,14 +132,7 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
                             <User className="w-4 h-4" />
                             Your Channel
                           </Link>
-                          <Link 
-                            to="/settings"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-[#27272a] hover:text-white rounded-xl transition-colors"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <Settings className="w-4 h-4" />
-                            Settings
-                          </Link>
+{/* Settings removed */}
                           <button
                             onClick={() => {
                               logout();

@@ -13,6 +13,7 @@ import LikedVideos from './pages/LikedVideos';
 import Subscriptions from './pages/Subscriptions';
 import Search from './pages/Search';
 import Playlist from './pages/Playlist';
+import PlaylistView from './pages/PlaylistView';
 
 // Placeholder for Settings (not implemented yet)
 const PlaceholderPage = ({ title }) => (
@@ -45,7 +46,13 @@ const App = () => {
         {/* Main App Routes (With Layout) */}
         <Route path="/" element={
           <AppLayout>
-            <Home />
+            <Home sortBy="createdAt" />
+          </AppLayout>
+        } />
+        
+        <Route path="/trending" element={
+          <AppLayout>
+            <Home sortBy="views" />
           </AppLayout>
         } />
         
@@ -97,11 +104,13 @@ const App = () => {
           </AppLayout>
         } />
 
-        <Route path="/settings" element={
+        <Route path="/playlists/:playlistId" element={
           <AppLayout>
-            <PlaceholderPage title="Settings" />
+            <PlaylistView />
           </AppLayout>
         } />
+
+
 
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ListVideo, Plus, Trash2, PlaySquare } from 'lucide-react';
 import { getUserPlaylists, createPlaylist, deletePlaylist } from '../services/playlistService';
 import useAuth from '../hooks/useAuth';
@@ -93,7 +94,9 @@ const Playlist = () => {
                 {/* Placeholder or first video thumbnail would go here */}
                 <PlaySquare className="w-12 h-12 text-gray-600" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Button variant="secondary" size="sm">View Playlist</Button>
+                  <Link to={`/playlists/${playlist._id}`}>
+                    <Button variant="secondary" size="sm">View Playlist</Button>
+                  </Link>
                 </div>
               </div>
               

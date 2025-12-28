@@ -19,7 +19,6 @@ const navItems = [
   { icon: History, label: 'History', path: '/history' },
   { icon: ThumbsUp, label: 'Liked Videos', path: '/liked' },
   { icon: ListVideo, label: 'Playlists', path: '/playlists' }, // Placeholder path
-  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 const Sidebar = ({ isOpen }) => {

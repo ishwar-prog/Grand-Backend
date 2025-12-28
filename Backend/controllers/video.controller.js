@@ -268,9 +268,27 @@ const getVideoById = asyncHandler(async (req, res) => {
     },
     {
       $addFields: {
-        likeCount: { $size: "$likes" },
-        viewsCount: { $ifNull: ["$views", 0] }, //views is array of user ids
-        channel: {
+        likesCount: { $size: "$likes" },
+        isLiked: {
+          $cond: {
+            if: {
+              $in: [
+                new mongoose.Types.ObjectId(req.user._id),
+                {
+                  $map: {
+                    input: "$likes",
+                    as: "like",
+                    in: "$$like.likedBy",
+                  },
+                },
+              ],
+            },
+            then: true,
+            else: false,
+          },
+        },
+        viewsCount: { $ifNull: ["$views", 0] },
+        owner: {
           _id: "$channel._id",
           username: "$channel.username",
           fullName: "$channel.fullName",
@@ -304,10 +322,12 @@ const getVideoById = asyncHandler(async (req, res) => {
         videoFile: 1,
         thumbnail: 1,
         duration: 1,
-        viewsCount: 1,
+        views: "$viewsCount",
+        likesCount: 1,
+        isLiked: 1,
         isPublished: 1,
         createdAt: 1,
-        channel: 1,
+        owner: 1,
       },
     },
   ]);

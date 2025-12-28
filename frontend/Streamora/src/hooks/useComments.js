@@ -44,12 +44,14 @@ const useComments = (videoId) => {
       // Prepend new comment with user info for optimistic UI
       const newComment = {
         ...res?.data,
-        commenter: {
+        owner: {
           _id: currentUser._id,
           username: currentUser.username,
           fullName: currentUser.fullName,
           avatar: currentUser.avatar,
         },
+        likesCount: 0,
+        isLiked: false,
       };
       setComments((prev) => [newComment, ...prev]);
       setPagination((p) => ({ ...p, total: p.total + 1 }));
@@ -112,7 +114,7 @@ const useComments = (videoId) => {
 
   // Check if user owns a comment
   const isCommentOwner = useCallback((comment) => {
-    return currentUser?._id === (comment?.commenter?._id || comment?.owner);
+    return currentUser?._id === comment?.owner?._id;
   }, [currentUser]);
 
   // Load more comments
