@@ -38,55 +38,68 @@ const mobileItems = [
   { id: 'liked', icon: ThumbsUp, label: 'Liked', path: '/liked', color: 'bg-gradient-to-br from-green-500 to-emerald-500' },
 ];
 
-// Dock Icon Component
-function DockIcon({ item, mouseX, onClick, isActive }) {
+// Dock Icon Component for Mobile with touch-based expansion
+function DockIcon({ item, mouseX, onClick, isActive, touchedIndex, index }) {
   const ref = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
-  const [isClicked, setIsClicked] = useState(false);
   
+  // Calculate distance from touched icon for mobile expansion
+  const getTouchBasedSize = () => {
+    if (touchedIndex === null) return 44;
+    const distance = Math.abs(index - touchedIndex);
+    if (distance === 0) return 56; // Touched icon
+    if (distance === 1) return 50; // Adjacent icons
+    if (distance === 2) return 46; // Two away
+    return 44; // Default
+  };
+
+  // Mouse-based transforms for desktop hover
   const distance = useTransform(mouseX, (val) => {
     const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
     return val - bounds.x - bounds.width / 2;
   });
 
-  const widthSync = useTransform(distance, [-100, 0, 100], [44, 64, 44]);
-  const width = useSpring(widthSync, { mass: 0.1, stiffness: 150, damping: 12 });
+  const mouseWidthSync = useTransform(distance, [-100, 0, 100], [44, 64, 44]);
+  const mouseWidth = useSpring(mouseWidthSync, { mass: 0.1, stiffness: 150, damping: 12 });
 
-  const heightSync = useTransform(distance, [-100, 0, 100], [44, 64, 44]);
-  const height = useSpring(heightSync, { mass: 0.1, stiffness: 150, damping: 12 });
+  const mouseHeightSync = useTransform(distance, [-100, 0, 100], [44, 64, 44]);
+  const mouseHeight = useSpring(mouseHeightSync, { mass: 0.1, stiffness: 150, damping: 12 });
 
   const IconComponent = item.icon;
+  const isTouched = touchedIndex === index;
+  const touchSize = getTouchBasedSize();
 
   return (
     <motion.div
       ref={ref}
-      style={{ width, height }}
+      style={{ 
+        width: touchedIndex !== null ? touchSize : mouseWidth, 
+        height: touchedIndex !== null ? touchSize : mouseHeight,
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={() => setIsClicked(true)}
-      onTouchEnd={() => setIsClicked(false)}
       onClick={onClick}
-      className="aspect-square cursor-pointer flex items-center justify-center relative"
-      whileTap={{ scale: 0.9 }}
+      className="cursor-pointer flex items-center justify-center relative"
     >
       <motion.div
         className={cn(
-          "w-full h-full rounded-2xl shadow-lg flex items-center justify-center text-white relative overflow-hidden",
+          "w-full h-full rounded-2xl shadow-lg flex items-center justify-center text-white relative",
           item.color
         )}
         animate={{
-          y: isClicked ? 2 : isHovered ? -8 : 0,
+          y: isTouched ? -12 : isHovered ? -8 : 0,
+          scale: isTouched ? 1.05 : 1,
         }}
         transition={{
           type: "spring",
           stiffness: 400,
-          damping: 17,
+          damping: 20,
         }}
       >
         <motion.div
           className="flex items-center justify-center"
           animate={{
-            scale: isHovered ? 1.15 : 1,
+            scale: isTouched ? 1.1 : isHovered ? 1.15 : 1,
           }}
           transition={{
             type: "spring",
@@ -101,35 +114,36 @@ function DockIcon({ item, mouseX, onClick, isActive }) {
         <motion.div
           className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent rounded-2xl"
           animate={{
-            opacity: isHovered ? 0.4 : 0.15,
+            opacity: isTouched ? 0.5 : isHovered ? 0.4 : 0.15,
           }}
           transition={{ duration: 0.2 }}
         />
       </motion.div>
 
-      {/* Tooltip */}
-      <motion.div
-        initial={{ opacity: 0, y: 10, scale: 0.8 }}
-        animate={{
-          opacity: isHovered ? 1 : 0,
-          y: isHovered ? -16 : 10,
-          scale: isHovered ? 1 : 0.8,
-        }}
-        transition={{
-          type: "spring",
-          stiffness: 500,
-          damping: 30,
-        }}
-        className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/95 text-white text-[10px] px-2 py-1 rounded-lg whitespace-nowrap pointer-events-none backdrop-blur-sm border border-white/10"
-      >
-        {item.label}
-      </motion.div>
+      {/* Tooltip - shows on touch for mobile */}
+      <AnimatePresence>
+        {(isHovered || isTouched) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.8 }}
+            animate={{ opacity: 1, y: -20, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.8 }}
+            transition={{
+              type: "spring",
+              stiffness: 500,
+              damping: 30,
+            }}
+            className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-3 py-1.5 rounded-xl whitespace-nowrap pointer-events-none backdrop-blur-xl border border-white/20 shadow-lg"
+          >
+            {item.label}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Active indicator dot */}
       {isActive && (
         <motion.div
           layoutId="mobileDockActive"
-          className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-lg"
+          className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-lg"
           transition={{
             type: "spring",
             stiffness: 500,
@@ -147,7 +161,9 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
   const [mobileSearch, setMobileSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [touchedIndex, setTouchedIndex] = useState(null);
   const mouseX = useMotionValue(Infinity);
+  const touchTimeoutRef = useRef(null);
 
   const handleMobileSearch = (query) => {
     if (query.trim()) {
@@ -167,7 +183,20 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
     } catch { setSuggestions([]); }
   };
 
-  const handleDockItemClick = (item) => {
+  const handleDockItemClick = (item, index) => {
+    // Set touched state for expansion animation
+    setTouchedIndex(index);
+    
+    // Clear any existing timeout
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+    }
+    
+    // Reset after animation completes
+    touchTimeoutRef.current = setTimeout(() => {
+      setTouchedIndex(null);
+    }, 300);
+    
     if (item.path === null) {
       setMobileSearch(true);
     } else {
@@ -243,20 +272,32 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
         </div>
       </motion.aside>
 
-      {/* Mobile Dock */}
+      {/* Mobile Dock - Glass morphism with expandable icons */}
       <motion.div
         onMouseMove={(e) => mouseX.set(e.pageX)}
         onMouseLeave={() => mouseX.set(Infinity)}
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 flex h-[72px] items-end gap-2 rounded-3xl bg-[#1c1c1e]/80 backdrop-blur-xl px-3 pb-2.5 border border-white/10 shadow-2xl md:hidden z-50 overflow-hidden"
+        onTouchEnd={() => {
+          // Reset touch state after touch ends (with delay for animation)
+          if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+          touchTimeoutRef.current = setTimeout(() => setTouchedIndex(null), 400);
+        }}
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-end gap-2 rounded-[28px] bg-white/[0.08] backdrop-blur-2xl px-4 pb-3 pt-5 border border-white/[0.15] md:hidden z-50"
         initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        animate={{ 
+          y: 0, 
+          opacity: 1,
+          height: touchedIndex !== null ? 88 : 76,
+        }}
         transition={{
           type: "spring",
-          stiffness: 260,
-          damping: 20,
+          stiffness: 300,
+          damping: 25,
           delay: 0.1,
         }}
-        style={{ position: 'fixed' }}
+        style={{ 
+          position: 'fixed',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        }}
       >
         {/* Highlight shine effect when hamburger is tapped */}
         <AnimatePresence>
@@ -293,12 +334,15 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
           )}
         </AnimatePresence>
         
-        {mobileItems.map((item) => (
+        {mobileItems.map((item, index) => (
           <DockIcon 
             key={item.id} 
             item={item} 
+            index={index}
+            totalItems={mobileItems.length}
             mouseX={mouseX}
-            onClick={() => handleDockItemClick(item)}
+            touchedIndex={touchedIndex}
+            onClick={() => handleDockItemClick(item, index)}
             isActive={item.path && location.pathname === item.path}
           />
         ))}

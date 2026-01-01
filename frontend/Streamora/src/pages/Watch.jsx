@@ -32,6 +32,8 @@ const Watch = () => {
   
   // AI Mood Analysis State
   const [moodSegments, setMoodSegments] = useState([]);
+  const [videoGenre, setVideoGenre] = useState(null);
+  const [genreColor, setGenreColor] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Sync subscription state when video loads
@@ -42,14 +44,44 @@ const Watch = () => {
     }
   }, [video?.owner]);
 
-  // Fetch mood segments
+  // Fetch mood segments and genre data - auto-analyze if not exists
   useEffect(() => {
     const fetchMood = async () => {
       if (!videoId) return;
       try {
         const res = await getVideoMoodSegments(videoId);
-        if (res?.data?.length > 0) {
-          setMoodSegments(res.data);
+        if (res?.data) {
+          // Handle new response format with genre info
+          if (res.data.segments?.length > 0) {
+            setMoodSegments(res.data.segments);
+          }
+          if (res.data.genre) {
+            setVideoGenre(res.data.genre);
+          }
+          if (res.data.color) {
+            setGenreColor(res.data.color);
+          }
+          
+          // Auto-analyze if no genre detected yet
+          if (!res.data.genre && !res.data.color) {
+            // Trigger analysis in background
+            try {
+              const analysisRes = await analyzeVideoMood.analyzeVideoMood(videoId);
+              if (analysisRes?.data) {
+                if (analysisRes.data.moodSegments) {
+                  setMoodSegments(analysisRes.data.moodSegments);
+                }
+                if (analysisRes.data.detectedGenre) {
+                  setVideoGenre(analysisRes.data.detectedGenre);
+                }
+                if (analysisRes.data.genreColor) {
+                  setGenreColor(analysisRes.data.genreColor);
+                }
+              }
+            } catch (err) {
+              console.error("Auto-analysis failed", err);
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to fetch mood segments", error);
@@ -61,13 +93,22 @@ const Watch = () => {
   const handleAnalyzeMood = async () => {
     if (!videoId) return;
     setIsAnalyzing(true);
-    toast.loading("Analyzing video mood... (this may take a moment)");
+    toast.loading("Analyzing video genre... (this may take a moment)");
     try {
-      const res = await analyzeVideoMood.analyzeVideoMood(videoId); // Use the default import object
-      if (res?.data?.moodSegments) {
-        setMoodSegments(res.data.moodSegments);
+      const res = await analyzeVideoMood.analyzeVideoMood(videoId);
+      if (res?.data) {
+        // Update with new genre data
+        if (res.data.moodSegments) {
+          setMoodSegments(res.data.moodSegments);
+        }
+        if (res.data.detectedGenre) {
+          setVideoGenre(res.data.detectedGenre);
+        }
+        if (res.data.genreColor) {
+          setGenreColor(res.data.genreColor);
+        }
         toast.dismiss();
-        toast.success("Analysis complete!");
+        toast.success(`Detected: ${res.data.detectedGenre || 'Unknown'} video!`);
       }
     } catch {
       toast.dismiss();
@@ -115,6 +156,8 @@ const Watch = () => {
           videoSrc={video.videoFile} 
           poster={video.thumbnail} 
           moodSegments={moodSegments}
+          genreColor={genreColor}
+          videoGenre={videoGenre}
         />
         
         <VideoInfo 

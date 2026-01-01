@@ -4,9 +4,9 @@ import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { analyzeVideoMood, translateText, generateTranscriptionFromDescription } from "../utils/gemini.js";
+import { detectVideoGenre, analyzeVideoMood, translateText, generateTranscriptionFromDescription, getGenreColor } from "../utils/gemini.js";
 
-// Analyze video mood and generate color-coded segments
+// Analyze video genre and set timeline color
 const analyzeVideoMoodSegments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
@@ -19,44 +19,54 @@ const analyzeVideoMoodSegments = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Video not found");
   }
 
-  // Check if analysis already exists
+  // Check if analysis already exists with genre detection
   let analysis = await VideoAnalysis.findOne({ video: videoId });
   
-  if (analysis && analysis.moodSegments.length > 0) {
+  if (analysis && analysis.detectedGenre && analysis.genreColor) {
     return res.status(200).json(
-      new ApiResponse(200, analysis, "Mood analysis already exists")
+      new ApiResponse(200, analysis, "Video analysis already exists")
     );
   }
 
-  // Generate transcription from title/description if not available
-  const transcription = await generateTranscriptionFromDescription(
+  // Detect genre from title and description using Gemini
+  const genreResult = await detectVideoGenre(
     video.title,
     video.description || ""
   );
 
-  // Analyze mood segments
-  const moodSegments = await analyzeVideoMood(transcription, video.duration || 300);
+  // Create single segment covering entire video with detected genre color
+  const duration = video.duration || 300;
+  const moodSegments = [{
+    startTime: 0,
+    endTime: duration,
+    mood: genreResult.genre,
+    color: genreResult.color
+  }];
 
   // Save or update analysis
   if (analysis) {
-    analysis.transcription = transcription;
+    analysis.detectedGenre = genreResult.genre;
+    analysis.genreColor = genreResult.color;
+    analysis.genreConfidence = genreResult.confidence;
     analysis.moodSegments = moodSegments;
     analysis.analyzedAt = new Date();
     await analysis.save();
   } else {
     analysis = await VideoAnalysis.create({
       video: videoId,
-      transcription,
+      detectedGenre: genreResult.genre,
+      genreColor: genreResult.color,
+      genreConfidence: genreResult.confidence,
       moodSegments
     });
   }
 
   return res.status(200).json(
-    new ApiResponse(200, analysis, "Video mood analyzed successfully")
+    new ApiResponse(200, analysis, "Video genre analyzed successfully")
   );
 });
 
-// Get mood segments for video seekbar
+// Get mood segments for video seekbar (returns genre color for entire timeline)
 const getVideoMoodSegments = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
@@ -65,10 +75,18 @@ const getVideoMoodSegments = asyncHandler(async (req, res) => {
   }
 
   const analysis = await VideoAnalysis.findOne({ video: videoId })
-    .select("moodSegments");
+    .select("moodSegments detectedGenre genreColor genreConfidence");
+
+  // Return full analysis with genre info for the timeline color
+  const responseData = {
+    segments: analysis?.moodSegments || [],
+    genre: analysis?.detectedGenre || null,
+    color: analysis?.genreColor || null,
+    confidence: analysis?.genreConfidence || 0
+  };
 
   return res.status(200).json(
-    new ApiResponse(200, analysis?.moodSegments || [], "Mood segments fetched")
+    new ApiResponse(200, responseData, "Video genre data fetched")
   );
 });
 

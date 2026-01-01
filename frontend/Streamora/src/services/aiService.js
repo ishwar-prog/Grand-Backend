@@ -1,12 +1,12 @@
 import api from "./api";
 
-// Analyze video mood segments (triggers AI analysis)
+// Analyze video genre (triggers AI analysis)
 export const analyzeVideoMood = async (videoId) => {
     const { data } = await api.post(`/ai/analyze/${videoId}`);
     return data;
 };
 
-// Get mood segments for seekbar
+// Get video genre data for seekbar coloring
 export const getVideoMoodSegments = async (videoId) => {
     const { data } = await api.get(`/ai/mood/${videoId}`);
     return data;

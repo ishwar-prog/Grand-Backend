@@ -1,24 +1,64 @@
 import React, { useMemo } from 'react';
 
+// Genre labels with emojis for display
+const GENRE_LABELS = {
+  horror: '👻 Horror',
+  funny: '😂 Funny',
+  cartoon: '🎨 Cartoon',
+  action: '🔥 Action',
+  war: '⚔️ War',
+  military: '🎖️ Military',
+  music: '🎵 Music',
+  chill: '😌 Chill',
+  relaxing: '🧘 Relaxing',
+  documentary: '🎬 Documentary',
+  nature: '🌿 Nature',
+  educational: '📚 Educational',
+  anime: '⛩️ Anime',
+  coding: '💻 Coding',
+  tech: '🔧 Tech',
+  tutorial: '📖 Tutorial',
+  gaming: '🎮 Gaming',
+  sports: '⚽ Sports',
+  news: '📰 News',
+  other: '🎥 Video'
+};
+
+// Genre color map (matching backend)
+const GENRE_COLORS = {
+  horror: '#1a1a1a',
+  funny: '#FACC15',
+  cartoon: '#EC4899',
+  action: '#EF4444',
+  war: '#DC2626',
+  military: '#B91C1C',
+  music: '#3B82F6',
+  chill: '#60A5FA',
+  relaxing: '#38BDF8',
+  documentary: '#22C55E',
+  nature: '#16A34A',
+  educational: '#4ADE80',
+  anime: '#F97316',
+  coding: '#6B7280',
+  tech: '#9CA3AF',
+  tutorial: '#78716C',
+  gaming: '#8B5CF6',
+  sports: '#14B8A6',
+  news: '#64748B',
+  other: '#8B5CF6'
+};
+
 /**
- * MoodSeekbar - Color-coded progress bar showing video mood segments
- * 
- * @param {Array} moodSegments - Array of { startTime, endTime, mood, color }
- * @param {number} duration - Total video duration in seconds
- * @param {number} currentTime - Current playback time
- * @param {function} onSeek - Callback when user clicks to seek
+ * MoodSeekbar - Color-coded progress bar showing video genre
+ * Uses a single color for the entire timeline based on detected genre
  */
-const MoodSeekbar = ({ moodSegments = [], duration, currentTime, onSeek }) => {
-  // Calculate segment positions as percentages
-  const segments = useMemo(() => {
-    if (!moodSegments.length || !duration) return [];
-    
-    return moodSegments.map(segment => ({
-      ...segment,
-      left: (segment.startTime / duration) * 100,
-      width: ((segment.endTime - segment.startTime) / duration) * 100
-    }));
-  }, [moodSegments, duration]);
+const MoodSeekbar = ({ moodSegments = [], duration, currentTime, onSeek, genreColor = null, videoGenre = null }) => {
+  // Use genre color if available, otherwise fall back to segments
+  const timelineColor = useMemo(() => {
+    if (genreColor) return genreColor;
+    if (moodSegments.length > 0) return moodSegments[0].color;
+    return '#8B5CF6'; // Default purple
+  }, [genreColor, moodSegments]);
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
@@ -32,93 +72,103 @@ const MoodSeekbar = ({ moodSegments = [], duration, currentTime, onSeek }) => {
     onSeek(seekTime);
   };
 
-  const getMoodLabel = (mood) => {
-    const labels = {
-      action: '🔥 Action',
-      funny: '😂 Funny',
-      chill: '😌 Chill',
-      horror: '👻 Horror',
-      intense: '⚡ Intense',
-      emotional: '💜 Emotional'
-    };
-    return labels[mood] || mood;
-  };
-
-  if (!segments.length) {
-    // Fallback to regular progress bar when no mood data
-    return (
+  return (
+    <div className="relative group">
+      {/* Genre badge */}
+      {videoGenre && (
+        <div 
+          className="absolute -top-8 left-0 text-xs px-2 py-1 rounded-lg font-medium flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ 
+            backgroundColor: `${timelineColor}20`,
+            color: timelineColor,
+            border: `1px solid ${timelineColor}40`
+          }}
+        >
+          {GENRE_LABELS[videoGenre] || videoGenre}
+        </div>
+      )}
+      
+      {/* Timeline bar */}
       <div 
-        className="relative h-1 bg-[#27272a] rounded-full cursor-pointer group"
+        className="relative h-2 bg-[#27272a] rounded-full cursor-pointer overflow-hidden"
         onClick={handleClick}
       >
+        {/* Full timeline with genre color (background) */}
         <div 
-          className="absolute h-full bg-purple-500 rounded-full transition-all"
-          style={{ width: `${progressPercent}%` }}
+          className="absolute inset-0 opacity-40"
+          style={{ backgroundColor: timelineColor }}
         />
+        
+        {/* Progress bar (filled portion) */}
         <div 
-          className="absolute h-3 w-3 bg-white rounded-full -top-1 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ left: `${progressPercent}%`, transform: 'translateX(-50%)' }}
+          className="absolute h-full rounded-full transition-all duration-100"
+          style={{ 
+            width: `${progressPercent}%`,
+            backgroundColor: timelineColor,
+            boxShadow: `0 0 10px ${timelineColor}80`
+          }}
+        />
+        
+        {/* Seek handle */}
+        <div 
+          className="absolute h-4 w-4 bg-white rounded-full -top-1 shadow-lg border-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          style={{ 
+            left: `${progressPercent}%`, 
+            transform: 'translateX(-50%)',
+            borderColor: timelineColor
+          }}
         />
       </div>
-    );
-  }
-
-  return (
-    <div 
-      className="relative h-2 bg-[#27272a] rounded-full cursor-pointer group overflow-hidden"
-      onClick={handleClick}
-    >
-      {/* Mood segments */}
-      {segments.map((segment, index) => (
-        <div
-          key={index}
-          className="absolute h-full opacity-80 hover:opacity-100 transition-opacity"
-          style={{
-            left: `${segment.left}%`,
-            width: `${segment.width}%`,
-            backgroundColor: segment.color
-          }}
-          title={getMoodLabel(segment.mood)}
-        />
-      ))}
-      
-      {/* Progress overlay */}
-      <div 
-        className="absolute h-full bg-white/30 backdrop-blur-sm"
-        style={{ width: `${progressPercent}%` }}
-      />
-      
-      {/* Seek handle */}
-      <div 
-        className="absolute h-4 w-4 bg-white rounded-full -top-1 shadow-lg border-2 border-purple-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-        style={{ left: `${progressPercent}%`, transform: 'translateX(-50%)' }}
-      />
     </div>
   );
 };
 
-// Legend component for mood colors
-export const MoodLegend = () => (
-  <div className="flex flex-wrap gap-3 text-xs text-gray-400 mt-2">
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-red-500" /> Action
-    </span>
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-yellow-500" /> Funny
-    </span>
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-blue-500" /> Chill
-    </span>
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-gray-900" /> Horror
-    </span>
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-orange-500" /> Intense
-    </span>
-    <span className="flex items-center gap-1">
-      <span className="w-3 h-3 rounded-sm bg-purple-500" /> Emotional
-    </span>
-  </div>
-);
+// Legend component showing detected genre with color
+export const MoodLegend = ({ detectedGenre = null }) => {
+  if (!detectedGenre) {
+    // Show all genre categories when no genre detected
+    return (
+      <div className="flex flex-wrap gap-2 text-[10px] text-gray-500 mt-2">
+        <span>AI analyzes videos to color the timeline:</span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: GENRE_COLORS.horror }} /> Horror
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: GENRE_COLORS.funny }} /> Comedy
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: GENRE_COLORS.action }} /> Action
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: GENRE_COLORS.music }} /> Music
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: GENRE_COLORS.coding }} /> Tech
+        </span>
+        <span className="text-gray-600">+ more</span>
+      </div>
+    );
+  }
+
+  const color = GENRE_COLORS[detectedGenre] || GENRE_COLORS.other;
+  const label = GENRE_LABELS[detectedGenre] || detectedGenre;
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-400 mt-2">
+      <span className="text-gray-500">Detected:</span>
+      <span 
+        className="flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium"
+        style={{ 
+          backgroundColor: `${color}20`,
+          color: color,
+          border: `1px solid ${color}30`
+        }}
+      >
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+        {label}
+      </span>
+    </div>
+  );
+};
 
 export default MoodSeekbar;
