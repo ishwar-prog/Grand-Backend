@@ -19,12 +19,13 @@ export const getVideoById = async (videoId) => {
 };
 
 // Publish a new video (upload video + optional thumbnail)
-export const publishVideo = async ({ title, description, videoFile, thumbnail }) => {
+export const publishVideo = async ({ title, description, videoFile, thumbnail, isPublished = true }) => {
     const formData = new FormData();
     formData.append("title", title);
     if (description) formData.append("description", description);
     formData.append("videoFile", videoFile);
     if (thumbnail) formData.append("thumbnail", thumbnail);
+    formData.append("isPublished", isPublished);
 
     const { data } = await api.post("/videos", formData);
     return data;

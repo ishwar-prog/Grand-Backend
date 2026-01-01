@@ -6,6 +6,12 @@ export const createTweet = async (content) => {
     return data;
 };
 
+// Get all tweets (community feed)
+export const getAllTweets = async (page = 1, limit = 20) => {
+    const { data } = await api.get(`/tweets/all?page=${page}&limit=${limit}`);
+    return data;
+};
+
 // Get all tweets of a user
 export const getUserTweets = async (userId) => {
     const { data } = await api.get(`/tweets/user/${userId}`);
@@ -24,4 +30,4 @@ export const deleteTweet = async (tweetId) => {
     return data;
 };
 
-export default { createTweet, getUserTweets, updateTweet, deleteTweet };
+export default { createTweet, getAllTweets, getUserTweets, updateTweet, deleteTweet };

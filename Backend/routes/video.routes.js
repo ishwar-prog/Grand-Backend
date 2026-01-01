@@ -8,14 +8,14 @@ import {
   togglePublishStatus,
   updateVideo,
 } from "../controllers/video.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { verifyJWT, optionalJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
 //PUBLIC routes (no auth required)
 router.route("/").get(getAllVideos); //Get all published videos (public)
-router.route("/user").get(getAllUserVideos); //Get all videos of a user (public) - pass userId as query param
+router.route("/user").get(optionalJWT, getAllUserVideos); //Get all videos of a user - shows drafts only to owner
 
 //all video routes require auth
 router.use(verifyJWT);

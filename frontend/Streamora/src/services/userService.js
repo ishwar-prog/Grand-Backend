@@ -6,6 +6,12 @@ export const getWatchHistory = async () => {
     return data;
 };
 
+// Clear user watch history
+export const clearWatchHistory = async () => {
+    const { data } = await api.delete("/users/watch-history");
+    return data;
+};
+
 // Get liked videos
 export const getLikedVideos = async () => {
     const { data } = await api.get("/likes/videos");
@@ -20,6 +26,7 @@ export const getUserPlaylists = async (userId) => {
 
 export default {
     getWatchHistory,
+    clearWatchHistory,
     getLikedVideos,
     getUserPlaylists
 };

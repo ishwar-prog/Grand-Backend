@@ -1,6 +1,7 @@
 import mongoose , { isValidObjectId }from "mongoose";
 import { Tweet } from "../models/tweet.model.js";
 import { User } from "../models/user.model.js";
+import { Like } from "../models/like.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -140,9 +141,72 @@ const deleteTweet = asyncHandler( async ( req , res ) => {
     .json(new ApiResponse(200 , tweet , "Tweet deleted successfully"))
 });
 
+const getAllTweets = asyncHandler( async ( req , res ) => {
+    const { page = 1, limit = 20 } = req.query;
+    const userId = req.user._id;
+
+    const tweets = await Tweet.aggregate([
+        { $sort: { createdAt: -1 } },
+        { $skip: (parseInt(page) - 1) * parseInt(limit) },
+        { $limit: parseInt(limit) },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner"
+            }
+        },
+        { $unwind: "$owner" },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "tweet",
+                as: "likes"
+            }
+        },
+        {
+            $addFields: {
+                likeCount: { $size: "$likes" },
+                isLiked: {
+                    $in: [new mongoose.Types.ObjectId(userId), "$likes.likedBy"]
+                },
+                isOwner: { $eq: ["$owner._id", new mongoose.Types.ObjectId(userId)] },
+                owner: {
+                    _id: "$owner._id",
+                    username: "$owner.username",
+                    avatar: "$owner.avatar",
+                    fullName: "$owner.fullName"
+                }
+            }
+        },
+        {
+            $project: {
+                content: 1,
+                owner: 1,
+                likeCount: 1,
+                isLiked: 1,
+                isOwner: 1,
+                createdAt: 1
+            }
+        }
+    ]);
+
+    const total = await Tweet.countDocuments();
+
+    return res.status(200).json(new ApiResponse(200, {
+        tweets,
+        totalPages: Math.ceil(total / parseInt(limit)),
+        currentPage: parseInt(page),
+        hasMore: parseInt(page) * parseInt(limit) < total
+    }, "Tweets fetched successfully"));
+});
+
 export {
     createTweet,
     getUserTweets,
     updateTweet,
-    deleteTweet
+    deleteTweet,
+    getAllTweets
 }

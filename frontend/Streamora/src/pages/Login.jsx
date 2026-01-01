@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogIn } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -9,8 +9,9 @@ import Input from '../components/ui/Input';
 const Login = () => {
   const navigate = useNavigate();
   const { login, isLoading, error } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '', // Can be email or username
+    username: '',
     password: ''
   });
 
@@ -34,7 +35,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0f0f10] p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Blobs */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
@@ -45,9 +46,11 @@ const Login = () => {
         className="w-full max-w-md bg-[#1c1c1e]/80 backdrop-blur-xl border border-[#27272a] rounded-3xl p-8 shadow-2xl z-10"
       >
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-purple-500/20 mx-auto mb-4">
-            S
-          </div>
+          <img 
+            src="/Logo.svg" 
+            alt="Streamora" 
+            className="w-16 h-16 object-contain mx-auto mb-4"
+          />
           <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
           <p className="text-gray-400 mt-2">Sign in to continue to Streamora</p>
         </div>
@@ -72,13 +75,18 @@ const Login = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-300">Password</label>
-            <Input
-              type="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="bg-[#0f0f10]"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="bg-[#0f0f10] pr-10"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <Button 

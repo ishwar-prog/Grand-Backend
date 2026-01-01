@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { History as HistoryIcon, Trash2 } from 'lucide-react';
-import { getWatchHistory } from '../services/userService';
+import { getWatchHistory, clearWatchHistory as clearHistoryApi } from '../services/userService';
 import VideoCard from '../components/ui/VideoCard';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import Button from '../components/ui/Button';
@@ -26,17 +26,23 @@ const History = () => {
     fetchHistory();
   }, []);
 
-  const clearHistory = () => {
-    // TODO: Implement clear history endpoint if available
-    toast.error("Clear history not implemented yet");
+  const clearHistory = async () => {
+    try {
+      await clearHistoryApi();
+      setVideos([]);
+      toast.success("Watch history cleared");
+    } catch (error) {
+      toast.error("Failed to clear history");
+    }
   };
 
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-500">
-            <HistoryIcon className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg relative overflow-hidden">
+            <HistoryIcon className="w-5 h-5 text-white" />
+            <div className="absolute inset-0 bg-gradient-to-br from-white/25 to-transparent rounded-xl" />
           </div>
           <h1 className="text-2xl font-bold text-white">Watch History</h1>
         </div>

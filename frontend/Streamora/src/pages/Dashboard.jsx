@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   Eye, 
@@ -39,6 +39,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   
   // Video edit state
   const [editingVideo, setEditingVideo] = useState(null);
@@ -66,16 +67,33 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  const handleDelete = async (videoId) => {
-    if (!window.confirm("Are you sure you want to delete this video?")) return;
+  const handleDeleteClick = (videoId) => {
+    setConfirmDeleteId(videoId);
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDeleteId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
     
-    setDeletingId(videoId);
+    const videoIdToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
+    setDeletingId(videoIdToDelete);
+    
     try {
-      await deleteVideo(videoId);
-      setVideos(prev => prev.filter(v => v._id !== videoId));
+      await deleteVideo(videoIdToDelete);
+      // Force a new array reference to trigger re-render
+      setVideos((currentVideos) => {
+        const newVideos = currentVideos.filter(v => v._id !== videoIdToDelete);
+        console.log('Videos after delete:', newVideos.length, 'from', currentVideos.length);
+        return newVideos;
+      });
       toast.success("Video deleted successfully");
     } catch (error) {
-      toast.error("Failed to delete video");
+      console.error("Delete video error:", error);
+      toast.error(error?.response?.data?.message || "Failed to delete video");
     } finally {
       setDeletingId(null);
     }
@@ -192,8 +210,20 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#27272a]">
+              <AnimatePresence mode="popLayout">
               {videos.map((video) => (
-                <tr key={video._id} className="hover:bg-[#27272a]/30 transition-colors">
+                <motion.tr 
+                  key={video._id} 
+                  layout
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  animate={{ 
+                    opacity: deletingId === video._id ? 0.5 : 1,
+                    scale: deletingId === video._id ? 0.98 : 1
+                  }}
+                  transition={{ duration: 0.2 }}
+                  className="hover:bg-[#27272a]/30 transition-colors"
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-4">
                       <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-black">
@@ -230,11 +260,15 @@ const Dashboard = () => {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => handleDelete(video._id)}
+                        onClick={() => handleDeleteClick(video._id)}
                         disabled={deletingId === video._id}
-                        className="p-2 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg transition-colors"
+                        className="p-2 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-lg transition-colors disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {deletingId === video._id ? (
+                          <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </button>
                       <button 
                         onClick={() => handleStartEdit(video)}
@@ -244,8 +278,9 @@ const Dashboard = () => {
                       </button>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
+              </AnimatePresence>
               {videos.length === 0 && (
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
@@ -316,6 +351,46 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDeleteId && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#1c1c1e] rounded-3xl p-6 w-full max-w-sm border border-[#27272a]"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                  <Trash2 className="w-8 h-8 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Delete Video?</h3>
+                <p className="text-gray-400 mb-6">
+                  This action cannot be undone. The video will be permanently deleted.
+                </p>
+                <div className="flex gap-3 w-full">
+                  <Button variant="ghost" onClick={handleCancelDelete} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleConfirmDelete}
+                    className="flex-1 !bg-red-500 hover:!bg-red-600"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

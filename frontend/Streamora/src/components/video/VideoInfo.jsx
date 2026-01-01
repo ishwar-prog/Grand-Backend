@@ -93,35 +93,39 @@ const VideoInfo = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-          <div className="flex items-center bg-[#27272a] rounded-full p-1">
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "rounded-l-full px-4 gap-2 hover:bg-[#3f3f46]",
-                isLiked && "text-purple-500"
-              )}
-              onClick={onToggleLike}
-            >
-              <ThumbsUp className={cn("w-5 h-5", isLiked && "fill-current")} />
-              <span>{likeCount}</span>
-            </Button>
-            <div className="w-[1px] h-6 bg-[#3f3f46]" />
-            <Button variant="ghost" className="rounded-r-full px-4 hover:bg-[#3f3f46]">
-              <ThumbsDown className="w-5 h-5" />
-            </Button>
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+          {/* Like/Dislike Group */}
+          <div className="glass-button-wrap rounded-full">
+            <div className="glass-button flex items-center rounded-full">
+              <button 
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-l-full transition-colors glass-button-text",
+                  isLiked && "text-purple-400"
+                )}
+                onClick={onToggleLike}
+              >
+                <ThumbsUp className={cn("w-5 h-5", isLiked && "fill-current")} />
+                <span>{likeCount}</span>
+              </button>
+              <div className="w-[1px] h-6 bg-white/10" />
+              <button className="flex items-center px-4 py-2.5 rounded-r-full transition-colors glass-button-text">
+                <ThumbsDown className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="glass-button-shadow rounded-full"></div>
           </div>
 
-          <Button variant="secondary" className="rounded-full gap-2">
+          <Button variant="secondary" className="gap-2" size="sm">
             <Share2 className="w-5 h-5" />
             <span>Share</span>
           </Button>
 
           <Button 
             variant="secondary" 
+            size="sm"
             className={cn(
-              "rounded-full gap-2",
-              isSaved && "text-purple-500 bg-purple-500/10 border-purple-500/20"
+              "gap-2",
+              isSaved && "text-purple-400"
             )}
             onClick={() => setIsPlaylistModalOpen(true)}
           >
@@ -130,12 +134,13 @@ const VideoInfo = ({
           </Button>
 
           <Button 
-            variant="secondary" 
-            className="rounded-full gap-2"
+            variant="secondary"
+            size="sm"
+            className="gap-2"
             onClick={onAnalyzeMood}
             disabled={isAnalyzing}
           >
-            <Sparkles className={cn("w-5 h-5", isAnalyzing && "animate-pulse text-purple-500")} />
+            <Sparkles className={cn("w-5 h-5", isAnalyzing && "animate-pulse text-purple-400")} />
             <span>{isAnalyzing ? "Analyzing..." : "Mood"}</span>
           </Button>
         </div>

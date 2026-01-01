@@ -12,7 +12,21 @@ export const markNotificationRead = async (notificationId) => {
     return data;
 };
 
+// Mark all notifications as read
+export const markAllNotificationsRead = async () => {
+    const { data } = await api.patch("/notifications/read-all");
+    return data;
+};
+
+// Delete all notifications
+export const deleteAllNotifications = async () => {
+    const { data } = await api.delete("/notifications");
+    return data;
+};
+
 export default {
     getUserNotifications,
-    markNotificationRead
+    markNotificationRead,
+    markAllNotificationsRead,
+    deleteAllNotifications
 };

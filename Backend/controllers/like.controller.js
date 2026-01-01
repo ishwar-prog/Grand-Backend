@@ -2,6 +2,7 @@ import mongoose, { isValidObjectId } from "mongoose";
 import { Like } from "../models/like.model.js";
 import { Video } from "../models/video.model.js";
 import { Comment } from "../models/comment.model.js";
+import { Tweet } from "../models/tweet.model.js";
 import { Notification } from "../models/notification.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -126,6 +127,18 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
       tweet: tweetId,
       likedBy: userId,
     });
+
+    // Notify Tweet Owner
+    const tweet = await Tweet.findById(tweetId);
+    if (tweet && tweet.owner.toString() !== userId.toString()) {
+      await Notification.create({
+        recipient: tweet.owner,
+        sender: userId,
+        type: "LIKE",
+        tweet: tweetId
+      });
+    }
+
     return res
       .status(200)
       .json(

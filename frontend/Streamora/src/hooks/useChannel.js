@@ -67,6 +67,10 @@ const useChannel = (username) => {
   // Toggle subscription
   const handleToggleSubscription = useCallback(async () => {
     if (!channel?._id || !currentUser) return;
+    if (currentUser._id === channel._id) {
+      alert("You can't subscribe to your own channel");
+      return;
+    }
     try {
       const res = await toggleSubscription(channel._id);
       setChannel((prev) => prev && {

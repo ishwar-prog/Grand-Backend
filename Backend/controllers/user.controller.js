@@ -282,23 +282,21 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
 
   if (!fullName?.trim() && !email?.trim()) {
-    //allow partial updates
-    throw new ApiError(400, " At least one field is required");
+    throw new ApiError(400, "At least one field is required");
   }
+
+  // Only update fields that are actually provided
+  const updateFields = {};
+  if (fullName?.trim()) updateFields.fullName = fullName.trim();
+  if (email?.trim()) updateFields.email = email.trim();
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
-    {
-      $set: {
-        fullName: fullName?.trim(),
-        email: email?.trim(),
-      },
-    },
+    { $set: updateFields },
     { new: true }
   ).select("-password");
 
   if (!user) {
-    //safety check
     throw new ApiError(404, "User not found");
   }
 
@@ -455,6 +453,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
+const clearWatchHistory = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(req.user._id, { $set: { watchHistory: [] } });
+  return res.status(200).json(new ApiResponse(200, {}, "Watch history cleared successfully"));
+});
+
 const getWatchHistory = asyncHandler(async (req, res) => {
   const user = await User.aggregate([
     {
@@ -541,4 +544,5 @@ export {
   updateUserCoverImage,
   getUserChannelProfile,
   getWatchHistory,
+  clearWatchHistory,
 };

@@ -28,4 +28,16 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
    }
 });
 
+export const optionalJWT = asyncHandler(async (req, _, next) => {
+  try {
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+    if (token) {
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const user = await User.findById(decoded?._id).select("-password -refreshToken");
+      if (user) req.user = user;
+    }
+  } catch {}
+  next();
+});
+
 export default verifyJWT;

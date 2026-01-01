@@ -20,6 +20,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   const sortDirection = sortType === "asc" ? 1 : -1;
 
   const aggregatePipleline = [
+    { $match: { isPublished: true } },
     {
       $lookup: {
         from: "users",
@@ -100,10 +101,12 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
   const limitNumber = parseInt(limit);
   const sortDirection = sortType === "asc" ? 1 : -1;
 
+  const isOwner = req.user?._id?.toString() === userId;
   const aggregatePipeline = [
     {
       $match: {
         owner: new mongoose.Types.ObjectId(userId),
+        ...(isOwner ? {} : { isPublished: true }),
       },
     },
     {
@@ -172,7 +175,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
 
 const publishAVideo = asyncHandler(async (req, res) => {
   //todo : get video , upload to cloudinary  , create video
-  const { title, description } = req.body;
+  const { title, description, isPublished = true } = req.body;
 
   if (!title?.trim()) {
     throw new ApiError(400, "Title is required");
@@ -205,6 +208,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     title: title.trim(),
     description: description?.trim() || "",
     duration: videoFile.duration,
+    isPublished: isPublished === 'true' || isPublished === true,
   });
 
   return res
@@ -220,20 +224,35 @@ const getVideoById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid video ID");
   }
 
-  //Increment view count and add to watch history
-  await Promise.all([
-    Video.findByIdAndUpdate(
-      videoId,
-      // { $addToSet: { views: req.user._id } },
-      { $inc: { views: 1 } },
-      { new: true }
-    ),
-    User.findByIdAndUpdate(
-      req.user._id,
-      { $push: { watchHistory: { $each: [videoId], $position: 0 } } }, //Add to beginning
-      { new: true }
-    ),
-  ]);
+  const videoCheck = await Video.findById(videoId).select('owner isPublished');
+  if (!videoCheck) throw new ApiError(404, "Video not found");
+  
+  const isOwner = videoCheck.owner.toString() === req.user._id.toString();
+  if (!videoCheck.isPublished && !isOwner) throw new ApiError(403, "This video is not available");
+
+  //Increment view count and add to watch history (only for published videos)
+  //Check if video is already at top of watch history to prevent duplicate view counts
+  if (videoCheck.isPublished) {
+    const user = await User.findById(req.user._id).select('watchHistory');
+    const recentlyWatched = user?.watchHistory?.[0]?.toString() === videoId;
+    
+    if (!recentlyWatched) {
+      await Promise.all([
+        Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true }),
+        User.findByIdAndUpdate(
+          req.user._id, 
+          { 
+            $pull: { watchHistory: new mongoose.Types.ObjectId(videoId) } // Remove if exists elsewhere
+          }
+        ),
+      ]);
+      // Add to top of watch history
+      await User.findByIdAndUpdate(
+        req.user._id,
+        { $push: { watchHistory: { $each: [new mongoose.Types.ObjectId(videoId)], $position: 0 } } }
+      );
+    }
+  }
 
   const video = await Video.aggregate([
     {

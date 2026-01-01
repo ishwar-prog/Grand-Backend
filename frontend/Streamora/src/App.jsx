@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import AppLayout from './components/layout/AppLayout';
 import Home from './pages/Home';
+import Trending from './pages/Trending';
 import Channel from './pages/Channel';
 import Watch from './pages/Watch';
 import Login from './pages/Login';
@@ -14,6 +15,7 @@ import Subscriptions from './pages/Subscriptions';
 import Search from './pages/Search';
 import Playlist from './pages/Playlist';
 import PlaylistView from './pages/PlaylistView';
+import Community from './pages/Community';
 
 // Placeholder for Settings (not implemented yet)
 const PlaceholderPage = ({ title }) => (
@@ -52,7 +54,7 @@ const App = () => {
         
         <Route path="/trending" element={
           <AppLayout>
-            <Home sortBy="views" />
+            <Trending />
           </AppLayout>
         } />
         
@@ -95,6 +97,12 @@ const App = () => {
         <Route path="/liked" element={
           <AppLayout>
             <LikedVideos />
+          </AppLayout>
+        } />
+
+        <Route path="/community" element={
+          <AppLayout>
+            <Community />
           </AppLayout>
         } />
 

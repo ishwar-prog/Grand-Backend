@@ -69,4 +69,23 @@ const markNotificationRead = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Notification marked as read"));
 });
 
-export { getUserNotifications, markNotificationRead };
+const markAllNotificationsRead = asyncHandler(async (req, res) => {
+  await Notification.updateMany(
+    { recipient: req.user._id, isRead: false },
+    { $set: { isRead: true } }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "All notifications marked as read"));
+});
+
+const deleteAllNotifications = asyncHandler(async (req, res) => {
+  await Notification.deleteMany({ recipient: req.user._id });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "All notifications deleted"));
+});
+
+export { getUserNotifications, markNotificationRead, markAllNotificationsRead, deleteAllNotifications };

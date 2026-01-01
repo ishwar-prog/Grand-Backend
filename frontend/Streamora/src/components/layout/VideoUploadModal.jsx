@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, Image as ImageIcon, Film, Loader2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Film, Loader2, Eye, EyeOff } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { publishVideo } from '../../services/videoService';
@@ -11,6 +11,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [files, setFiles] = useState({ video: null, thumbnail: null });
   const [previews, setPreviews] = useState({ video: null, thumbnail: null });
   const [details, setDetails] = useState({ title: '', description: '' });
+  const [publishMode, setPublishMode] = useState('public'); // 'public' | 'draft'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -52,7 +53,6 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
       setLoading(true);
       setError(null);
       
-      // Simulate progress since axios progress isn't hooked up yet
       const interval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 500);
@@ -61,7 +61,8 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
         title: details.title,
         description: details.description,
         videoFile: files.video,
-        thumbnail: files.thumbnail
+        thumbnail: files.thumbnail,
+        isPublished: publishMode === 'public'
       });
 
       clearInterval(interval);
@@ -84,6 +85,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
     setFiles({ video: null, thumbnail: null });
     setPreviews({ video: null, thumbnail: null });
     setDetails({ title: '', description: '' });
+    setPublishMode('public');
     setError(null);
     setUploadProgress(0);
     onClose();
@@ -191,6 +193,18 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                       </div>
 
                       <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Visibility</label>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setPublishMode('public')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border transition-all text-sm font-medium", publishMode === 'public' ? 'border-purple-500 bg-purple-500/10 text-purple-400' : 'border-[#27272a] text-gray-400 hover:bg-[#27272a]')}>
+                            <Eye className="w-4 h-4" />Public
+                          </button>
+                          <button type="button" onClick={() => setPublishMode('draft')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border transition-all text-sm font-medium", publishMode === 'draft' ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400' : 'border-[#27272a] text-gray-400 hover:bg-[#27272a]')}>
+                            <EyeOff className="w-4 h-4" />Draft
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-300">Thumbnail</label>
                         <div 
                           onClick={() => thumbnailInputRef.current?.click()}
@@ -228,7 +242,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                       Cancel
                     </Button>
                     <Button type="submit" isLoading={loading} disabled={!details.title || !files.thumbnail}>
-                      {loading ? `Uploading ${uploadProgress}%` : 'Upload Video'}
+                      {loading ? `Uploading ${uploadProgress}%` : publishMode === 'draft' ? 'Save as Draft' : 'Publish Video'}
                     </Button>
                   </div>
                 </form>

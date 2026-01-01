@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -9,28 +9,70 @@ import {
   User, 
   LogOut, 
   Settings,
-  X
+  X,
+  Clock,
+  TrendingUp,
+  MessageSquarePlus
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import VideoUploadModal from './VideoUploadModal';
+import TweetModal from '../tweet/TweetModal';
 import NotificationDropdown from './NotificationDropdown';
 import { getAvatarUrl } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
+import { getAllVideos } from '../../services/videoService';
 
-const Header = ({ toggleSidebar, isSidebarOpen }) => {
+const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
+  const searchRef = useRef(null);
+  const debounceRef = useRef(null);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+  // Fetch suggestions with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSuggestions([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await getAllVideos({ query: searchQuery, limit: 8, sortBy: 'views', sortType: 'desc' });
+        const titles = [...new Set((res?.data?.docs || []).map(v => v.title))].slice(0, 6);
+        setSuggestions(titles);
+      } catch { setSuggestions([]); }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClick = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowSuggestions(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSearch = (e, query = searchQuery) => {
+    e?.preventDefault();
+    if (query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query)}`);
+      setShowSuggestions(false);
+      setSearchQuery(query);
     }
+  };
+
+  const handleKeyDown = (e) => {
+    if (!suggestions.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, -1)); }
+    else if (e.key === 'Enter' && selectedIndex >= 0) { e.preventDefault(); handleSearch(e, suggestions[selectedIndex]); }
+    else if (e.key === 'Escape') setShowSuggestions(false);
   };
 
   return (
@@ -41,15 +83,21 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={toggleSidebar}
-            className="hidden md:flex"
+            onClick={() => {
+              if (isMobile) {
+                onMobileMenuTap?.();
+              } else {
+                toggleSidebar();
+              }
+            }}
+            className="flex"
           >
             <Menu className="w-5 h-5" />
           </Button>
           
           <Link to="/" className="flex items-center gap-3 group">
             <img 
-              src="/logo.jpg" 
+              src="/Logo.svg" 
               alt="Streamora" 
               className="w-10 h-10 object-contain rounded-2xl"
             />
@@ -60,32 +108,59 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
         </div>
 
         {/* Center: Search */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-4 relative">
+        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-4 relative" ref={searchRef}>
           <div className="relative w-full group">
             <Input
               type="text"
               placeholder="Search videos..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setSelectedIndex(-1); }}
+              onFocus={() => setShowSuggestions(true)}
+              onKeyDown={handleKeyDown}
               className="w-full pl-10 pr-4 bg-[#1c1c1e] border-transparent focus:bg-[#27272a] transition-all rounded-full"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-purple-500 transition-colors" />
+            
+            {/* Suggestions Dropdown */}
+            <AnimatePresence>
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-[#1c1c1e] border border-[#27272a] rounded-2xl shadow-xl overflow-hidden z-50"
+                >
+                  {suggestions.map((title, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleSearch(null, title)}
+                      className={cn("w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors", selectedIndex === i ? "bg-[#27272a] text-white" : "text-gray-300 hover:bg-[#27272a]")}
+                    >
+                      <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <span className="truncate">{title}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </form>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="w-5 h-5" />
-          </Button>
-
           {isAuthenticated ? (
             <>
               <Button 
                 variant="ghost" 
-                size="icon" 
-                className="hidden sm:flex relative"
-                onClick={() => setIsUploadModalOpen(true)}
+                size="icon"                 onClick={() => setIsTweetModalOpen(true)}
+              >
+                <MessageSquarePlus className="w-5 h-5" />
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="icon"                 onClick={() => setIsUploadModalOpen(true)}
               >
                 <Upload className="w-5 h-5" />
               </Button>
@@ -170,6 +245,12 @@ const Header = ({ toggleSidebar, isSidebarOpen }) => {
           // Refresh videos or show success toast
           window.location.reload(); // Simple refresh for now
         }}
+      />
+
+      <TweetModal
+        isOpen={isTweetModalOpen}
+        onClose={() => setIsTweetModalOpen(false)}
+        onSuccess={() => {}}
       />
     </>
   );

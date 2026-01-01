@@ -7,6 +7,7 @@ import { cn } from '../../utils/cn';
 const AppLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [dockHighlight, setDockHighlight] = useState(false);
 
   // Handle responsive sidebar state
   useEffect(() => {
@@ -29,14 +30,21 @@ const AppLayout = ({ children }) => {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  const triggerDockHighlight = () => {
+    setDockHighlight(true);
+    setTimeout(() => setDockHighlight(false), 1000);
+  };
+
   return (
-    <div className="min-h-screen bg-[#0f0f10] text-white font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen text-white font-sans selection:bg-purple-500/30">
       <Header 
         toggleSidebar={toggleSidebar} 
-        isSidebarOpen={isSidebarOpen} 
+        isSidebarOpen={isSidebarOpen}
+        isMobile={isMobile}
+        onMobileMenuTap={triggerDockHighlight}
       />
       
-      <Sidebar isOpen={isSidebarOpen} />
+      <Sidebar isOpen={isSidebarOpen} dockHighlight={dockHighlight} />
 
       <motion.main
         animate={{ 
