@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, Image as ImageIcon, Film, Loader2, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Upload, X, Image as ImageIcon, Eye, EyeOff } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { publishVideo } from '../../services/videoService';
+import { getErrorMessage, isCancelledError } from '../../services/api';
 import { cn } from '../../utils/cn';
 
 const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
@@ -15,72 +16,133 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadPhase, setUploadPhase] = useState(''); // 'uploading' | 'processing' | ''
 
   const videoInputRef = useRef(null);
   const thumbnailInputRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const previewsRef = useRef(previews);
 
-  const handleFileSelect = (e, type) => {
+  // Keep ref in sync with state for cleanup
+  useEffect(() => {
+    previewsRef.current = previews;
+  }, [previews]);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (previewsRef.current.video) URL.revokeObjectURL(previewsRef.current.video);
+      if (previewsRef.current.thumbnail) URL.revokeObjectURL(previewsRef.current.thumbnail);
+    };
+  }, []);
+
+  const handleFileSelect = useCallback((e, type) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (type === 'video') {
+      // Validate video file type
+      if (!file.type.startsWith('video/')) {
+        setError('Please select a valid video file');
+        return;
+      }
       if (file.size > 100 * 1024 * 1024) { // 100MB limit
         setError('Video file too large (max 100MB)');
         return;
       }
+      // Revoke old URL before creating new one
+      if (previews.video) URL.revokeObjectURL(previews.video);
       setFiles(prev => ({ ...prev, video: file }));
       setPreviews(prev => ({ ...prev, video: URL.createObjectURL(file) }));
       setStep(2);
     } else {
+      // Validate image file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file');
+        return;
+      }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         setError('Thumbnail too large (max 5MB)');
         return;
       }
+      // Revoke old URL before creating new one
+      if (previews.thumbnail) URL.revokeObjectURL(previews.thumbnail);
       setFiles(prev => ({ ...prev, thumbnail: file }));
       setPreviews(prev => ({ ...prev, thumbnail: URL.createObjectURL(file) }));
     }
     setError(null);
-  };
+  }, [previews.video, previews.thumbnail]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!files.video || !files.thumbnail || !details.title) {
+    if (!files.video || !files.thumbnail || !details.title.trim()) {
       setError('Please fill in all required fields');
       return;
     }
 
+    // Create new AbortController for this upload
+    abortControllerRef.current = new AbortController();
+
     try {
       setLoading(true);
       setError(null);
-      
-      const interval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 500);
+      setUploadProgress(0);
+      setUploadPhase('uploading');
 
       await publishVideo({
-        title: details.title,
-        description: details.description,
+        title: details.title.trim(),
+        description: details.description.trim(),
         videoFile: files.video,
         thumbnail: files.thumbnail,
-        isPublished: publishMode === 'public'
+        isPublished: publishMode === 'public',
+        onUploadProgress: (progress) => {
+          setUploadProgress(progress);
+          // When upload reaches 100%, switch to processing phase
+          if (progress >= 100) {
+            setUploadPhase('processing');
+          }
+        },
+        signal: abortControllerRef.current.signal,
       });
 
-      clearInterval(interval);
       setUploadProgress(100);
+      setUploadPhase('');
       
-      setTimeout(() => {
-        onSuccess?.();
-        handleClose();
-      }, 500);
+      // Success - notify parent and close
+      onSuccess?.();
+      handleClose();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to upload video');
+      // Don't show error if user cancelled
+      if (isCancelledError(err)) {
+        setError('Upload cancelled');
+      } else {
+        setError(getErrorMessage(err));
+      }
       setUploadProgress(0);
+      setUploadPhase('');
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
-  const handleClose = () => {
+  const handleCancel = useCallback(() => {
+    // Abort ongoing upload if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    // Abort ongoing upload
+    handleCancel();
+    
+    // Cleanup object URLs
+    if (previews.video) URL.revokeObjectURL(previews.video);
+    if (previews.thumbnail) URL.revokeObjectURL(previews.thumbnail);
+    
+    // Reset state
     setStep(1);
     setFiles({ video: null, thumbnail: null });
     setPreviews({ video: null, thumbnail: null });
@@ -88,7 +150,19 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
     setPublishMode('public');
     setError(null);
     setUploadProgress(0);
+    setUploadPhase('');
+    setLoading(false);
     onClose();
+  }, [previews.video, previews.thumbnail, handleCancel, onClose]);
+
+  const getUploadButtonText = () => {
+    if (!loading) {
+      return publishMode === 'draft' ? 'Save as Draft' : 'Publish Video';
+    }
+    if (uploadPhase === 'processing') {
+      return 'Processing...';
+    }
+    return `Uploading ${uploadProgress}%`;
   };
 
   return (
@@ -238,11 +312,11 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                   </div>
 
                   <div className="flex justify-end gap-3 pt-4 border-t border-[#27272a]">
-                    <Button type="button" variant="ghost" onClick={handleClose}>
-                      Cancel
+                    <Button type="button" variant="ghost" onClick={loading ? handleCancel : handleClose}>
+                      {loading ? 'Cancel Upload' : 'Cancel'}
                     </Button>
-                    <Button type="submit" isLoading={loading} disabled={!details.title || !files.thumbnail}>
-                      {loading ? `Uploading ${uploadProgress}%` : publishMode === 'draft' ? 'Save as Draft' : 'Publish Video'}
+                    <Button type="submit" isLoading={loading} disabled={!details.title.trim() || !files.thumbnail}>
+                      {getUploadButtonText()}
                     </Button>
                   </div>
                 </form>

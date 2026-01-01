@@ -4,7 +4,8 @@ import axios from "axios";
  * API Configuration
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+const REQUEST_TIMEOUT = 30000; // 30 seconds for regular requests
+const UPLOAD_TIMEOUT = 10 * 60 * 1000; // 10 minutes for file uploads
 
 /**
  * Axios instance with default configuration
@@ -16,6 +17,34 @@ const api = axios.create({
   // Don't set default Content-Type - let axios set it automatically
   // For JSON it will use application/json, for FormData it will use multipart/form-data
 });
+
+/**
+ * Upload file with progress tracking
+ * @param {string} url - API endpoint
+ * @param {FormData} formData - Form data with files
+ * @param {Object} options - Upload options
+ * @param {Function} options.onUploadProgress - Progress callback (0-100)
+ * @param {AbortSignal} options.signal - AbortController signal for cancellation
+ * @returns {Promise} API response
+ */
+export const uploadWithProgress = async (url, formData, { onUploadProgress, signal } = {}) => {
+  const token = localStorage.getItem("access_token");
+  
+  return axios.post(`${API_BASE_URL}${url}`, formData, {
+    withCredentials: true,
+    timeout: UPLOAD_TIMEOUT,
+    signal,
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onUploadProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onUploadProgress(percentCompleted);
+      }
+    },
+  });
+};
 
 /**
  * Flag to prevent multiple simultaneous refresh attempts
@@ -175,6 +204,9 @@ export const isTimeoutError = (error) => {
  * @returns {string} Human-readable error message
  */
 export const getErrorMessage = (error) => {
+  if (axios.isCancel(error)) {
+    return "Upload cancelled";
+  }
   if (isNetworkError(error)) {
     return "Network error. Please check your connection.";
   }
@@ -186,6 +218,15 @@ export const getErrorMessage = (error) => {
     error.message ||
     "An unexpected error occurred"
   );
+};
+
+/**
+ * Check if error is a cancelled request
+ * @param {Error} error - Axios error
+ * @returns {boolean}
+ */
+export const isCancelledError = (error) => {
+  return axios.isCancel(error);
 };
 
 export default api;

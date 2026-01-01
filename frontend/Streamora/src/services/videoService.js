@@ -1,4 +1,4 @@
-import api from "./api";
+import api, { uploadWithProgress } from "./api";
 
 // Get all videos (public) - with search, sort, pagination
 export const getAllVideos = async ({ page = 1, limit = 10, query = "", sortBy = "createdAt", sortType = "desc" } = {}) => {
@@ -18,8 +18,27 @@ export const getVideoById = async (videoId) => {
     return data;
 };
 
-// Publish a new video (upload video + optional thumbnail)
-export const publishVideo = async ({ title, description, videoFile, thumbnail, isPublished = true }) => {
+/**
+ * Publish a new video (upload video + thumbnail)
+ * @param {Object} params - Video parameters
+ * @param {string} params.title - Video title
+ * @param {string} params.description - Video description
+ * @param {File} params.videoFile - Video file
+ * @param {File} params.thumbnail - Thumbnail image
+ * @param {boolean} params.isPublished - Publish status
+ * @param {Function} params.onUploadProgress - Progress callback (0-100)
+ * @param {AbortSignal} params.signal - AbortController signal for cancellation
+ * @returns {Promise} API response
+ */
+export const publishVideo = async ({ 
+    title, 
+    description, 
+    videoFile, 
+    thumbnail, 
+    isPublished = true,
+    onUploadProgress,
+    signal
+}) => {
     const formData = new FormData();
     formData.append("title", title);
     if (description) formData.append("description", description);
@@ -27,7 +46,10 @@ export const publishVideo = async ({ title, description, videoFile, thumbnail, i
     if (thumbnail) formData.append("thumbnail", thumbnail);
     formData.append("isPublished", isPublished);
 
-    const { data } = await api.post("/videos", formData);
+    const { data } = await uploadWithProgress("/videos", formData, {
+        onUploadProgress,
+        signal,
+    });
     return data;
 };
 

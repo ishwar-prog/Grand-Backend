@@ -95,6 +95,39 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error("Global Error:", err);
 
+  // Handle Multer errors
+  if (err.name === 'MulterError') {
+    let message = 'File upload error';
+    let statusCode = 400;
+    
+    switch (err.code) {
+      case 'LIMIT_FILE_SIZE':
+        message = 'File too large. Maximum size is 100MB for videos and 5MB for images';
+        break;
+      case 'LIMIT_FILE_COUNT':
+        message = 'Too many files';
+        break;
+      case 'LIMIT_UNEXPECTED_FILE':
+        message = 'Unexpected file field';
+        break;
+      default:
+        message = err.message;
+    }
+    
+    return res.status(statusCode).json({
+      success: false,
+      message,
+    });
+  }
+
+  // Handle file filter errors from multer
+  if (err.message && (err.message.includes('Invalid video format') || err.message.includes('Invalid image format'))) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
   const statusCode = err.statusCode || 500;
   const message = err.message || "Internal Server Error";
 
