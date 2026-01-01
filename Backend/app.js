@@ -33,9 +33,6 @@ app.use(
   })
 );
 
-// Handle preflight requests
-app.options("*", cors());
-
 app.use(helmet()); //sets secure HTTP headers
 
 //Rate limiting - prevent spam/abuse
