@@ -96,10 +96,14 @@ export const formatVideoCount = (count) => {
 
 // Validate and get thumbnail URL with fallback
 export const getThumbnailUrl = (url, fallback = '/placeholder-thumbnail.jpg') => {
-  return url || fallback;
+  if (!url) return fallback;
+  // Convert HTTP to HTTPS for Cloudinary URLs
+  return url.replace(/^http:\/\//i, 'https://');
 };
 
 // Validate and get avatar URL with fallback
 export const getAvatarUrl = (url, fallback = '/default-avatar.png') => {
-  return url || fallback;
+  if (!url) return fallback;
+  // Convert HTTP to HTTPS for Cloudinary URLs
+  return url.replace(/^http:\/\//i, 'https://');
 };
