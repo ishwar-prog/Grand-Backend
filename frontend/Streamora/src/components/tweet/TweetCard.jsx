@@ -6,6 +6,7 @@ import { getAvatarUrl, formatTimeAgo } from '../../utils/formatters';
 import { toggleTweetLike } from '../../services/likeService';
 import { updateTweet, deleteTweet } from '../../services/tweetService';
 import Button from '../ui/Button';
+import LinkifyText from '../ui/LinkifyText';
 import toast from 'react-hot-toast';
 import { cn } from '../../utils/cn';
 
@@ -145,7 +146,9 @@ const TweetCard = forwardRef(({ tweet, onUpdate, onDelete }, ref) => {
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-gray-200 text-sm whitespace-pre-wrap">{tweet.content}</p>
+        <p className="mt-3 text-gray-200 text-sm whitespace-pre-wrap">
+          <LinkifyText>{tweet.content}</LinkifyText>
+        </p>
       )}
 
       {/* Actions */}

@@ -22,6 +22,7 @@ const formatTime = (s) => !s || isNaN(s) ? '0:00' : `${Math.floor(s/60)}:${Strin
 const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenre = null }) => {
   const videoRef = useRef(null), containerRef = useRef(null), progressRef = useRef(null), hideTimeout = useRef(null);
   const [state, setState] = useState({ playing: false, time: 0, duration: 0, volume: 1, muted: false, fullscreen: false, controls: true, hovering: false, hoverTime: 0, buffered: 0 });
+  const [doubleTap, setDoubleTap] = useState({ show: false, side: null, count: 0 });
   
   const color = genreColor || GENRE_COLORS[videoGenre] || '#8B5CF6';
   const progress = state.duration ? (state.time / state.duration) * 100 : 0;
@@ -62,10 +63,40 @@ const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenr
   const setVol = (e) => { if (videoRef.current) { videoRef.current.volume = +e.target.value; videoRef.current.muted = +e.target.value === 0; }};
   const toggleFs = () => !document.fullscreenElement ? containerRef.current?.requestFullscreen() : document.exitFullscreen();
 
+  // Double-tap to seek (YouTube-style)
+  const lastTap = useRef({ time: 0, side: null });
+  const handleDoubleTap = (side) => {
+    const now = Date.now();
+    if (lastTap.current.side === side && now - lastTap.current.time < 300) {
+      const skipAmount = side === 'left' ? -10 : 10;
+      skip(skipAmount);
+      setDoubleTap(prev => ({ show: true, side, count: prev.side === side ? prev.count + 10 : 10 }));
+      setTimeout(() => setDoubleTap({ show: false, side: null, count: 0 }), 800);
+    }
+    lastTap.current = { time: now, side };
+  };
+
   return (
     <div className={cn("relative", className)}>
       <div ref={containerRef} className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10" onMouseMove={resetHide} onMouseLeave={() => state.playing && setState(s => ({ ...s, controls: false }))}>
         <video ref={videoRef} src={videoSrc} poster={poster} autoPlay playsInline className="w-full h-full object-contain cursor-pointer" onClick={toggle} onDoubleClick={toggleFs} />
+
+        {/* Double-tap zones for 10s skip */}
+        <div className="absolute inset-0 flex pointer-events-none">
+          <div className="w-1/3 h-full pointer-events-auto" onClick={() => handleDoubleTap('left')} />
+          <div className="w-1/3 h-full" />
+          <div className="w-1/3 h-full pointer-events-auto" onClick={() => handleDoubleTap('right')} />
+        </div>
+
+        {/* Double-tap feedback animation */}
+        {doubleTap.show && (
+          <div className={cn("absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 animate-pulse", doubleTap.side === 'left' ? 'left-[15%]' : 'right-[15%]')}>
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              {doubleTap.side === 'left' ? <SkipBack className="w-8 h-8 text-white" /> : <SkipForward className="w-8 h-8 text-white" />}
+            </div>
+            <span className="text-white text-sm font-semibold">{doubleTap.count} seconds</span>
+          </div>
+        )}
 
         {videoGenre && <div className={cn("absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 backdrop-blur-md transition-opacity", state.controls ? "opacity-100" : "opacity-0")} style={{ backgroundColor: `${color}30`, color, border: `1px solid ${color}50` }}><span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }} />{GENRE_LABELS[videoGenre] || videoGenre}</div>}
 

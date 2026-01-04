@@ -6,6 +6,7 @@ import useAuth from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Avatar from '../ui/Avatar';
+import LinkifyText from '../ui/LinkifyText';
 import { formatTimeAgo } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 
@@ -171,7 +172,7 @@ const CommentItem = ({ comment, currentUser, onDelete, onToggleLike, onUpdate })
           </div>
         ) : (
           <p className="text-sm text-gray-200 whitespace-pre-wrap">
-            {comment.content}
+            <LinkifyText>{comment.content}</LinkifyText>
           </p>
         )}
 
