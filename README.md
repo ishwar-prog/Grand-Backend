@@ -128,10 +128,3 @@ Allowed origins include:
 - Feeds use **Intersection Observer** for smoother infinite scrolling.
 - SPA refresh is handled via a `_redirects` file to avoid route 404s in static hosting.
 
-## Next Improvement
-
-- **Route‑based lazy loading (code splitting)** to reduce initial bundle size.
-
----
-
-If you want, I can also generate an `Backend/.env.example` and `frontend/Streamora/.env.example` that match your code exactly.
