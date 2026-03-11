@@ -61,7 +61,7 @@ const uploadVideoAsHLS = async (localfilepath) => {
             unique_filename: true,
             eager: [
                 {
-                    streaming_profile: "full_hd", // Cloudinary built-in profile
+                    streaming_profile: "streamora_hls", // Custom profile: 144p, 240p, 360p, 480p, 720p, 1080p
                     format: "m3u8"
                 }
             ],
@@ -157,4 +157,28 @@ const getAutoThumbnailUrl = (videoUrl) => {
         .replace(/\.[^/.]+$/, '.jpg');
 };
 
-export { uploadToCloudinary, uploadVideoAsHLS, deleteOnCloudinary, getAutoThumbnailUrl };
+// Creates the custom HLS streaming profile on Cloudinary (safe to call repeatedly — skips if already exists).
+const ensureCloudinaryStreamingProfile = async () => {
+    try {
+        await cloudinary.api.create_streaming_profile("streamora_hls", {
+            display_name: "Streamora HLS",
+            representations: [
+                { transformation: [{ width: 256,  height: 144,  bit_rate: "150k",  codec: "h264" }] },
+                { transformation: [{ width: 426,  height: 240,  bit_rate: "300k",  codec: "h264" }] },
+                { transformation: [{ width: 640,  height: 360,  bit_rate: "700k",  codec: "h264" }] },
+                { transformation: [{ width: 854,  height: 480,  bit_rate: "1200k", codec: "h264" }] },
+                { transformation: [{ width: 1280, height: 720,  bit_rate: "2500k", codec: "h264" }] },
+                { transformation: [{ width: 1920, height: 1080, bit_rate: "5000k", codec: "h264" }] },
+            ]
+        });
+        console.log("Cloudinary streaming profile 'streamora_hls' created successfully");
+    } catch (error) {
+        if (error?.http_code === 409 || error?.error?.http_code === 409 || (error?.message || '').includes("already exists")) {
+            console.log("Cloudinary streaming profile 'streamora_hls' already exists — skipping creation");
+        } else {
+            console.error("Failed to create Cloudinary streaming profile:", error.message);
+        }
+    }
+};
+
+export { uploadToCloudinary, uploadVideoAsHLS, deleteOnCloudinary, getAutoThumbnailUrl, ensureCloudinaryStreamingProfile };

@@ -43,13 +43,17 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
         }));
         setQualities(levels);
         setCurrentLevel(-1); // Default to Auto
+        video.play().catch(() => {}); // Autoplay once manifest is ready
       });
     } else if (hlsUrl && video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Apple HLS (Safari) â€” quality is handled by the browser natively
       video.src = hlsUrl;
+      video.load();
+      video.play().catch(() => {});
     } else {
       // MP4 fallback for legacy videos
       video.src = videoSrc;
+      video.load();
+      video.play().catch(() => {});
     }
 
     return () => {

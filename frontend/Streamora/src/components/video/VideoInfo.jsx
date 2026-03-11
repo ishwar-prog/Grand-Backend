@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, Share2, Bookmark, Sparkles } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share2, Bookmark } from 'lucide-react';
 import SubscribeButton from '../channel/SubscribeButton';
 import Button from '../ui/Button';
 import { formatViews, formatTimeAgo, formatSubscribers, getAvatarUrl } from '../../utils/formatters';
@@ -19,8 +19,6 @@ const VideoInfo = ({
   onToggleLike,
   isLiked,
   likeCount,
-  onAnalyzeMood,
-  isAnalyzing
 }) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -131,17 +129,6 @@ const VideoInfo = ({
           >
             <Bookmark className={cn("w-5 h-5", isSaved && "fill-current")} />
             <span>Save</span>
-          </Button>
-
-          <Button 
-            variant="secondary"
-            size="sm"
-            className="gap-2"
-            onClick={onAnalyzeMood}
-            disabled={isAnalyzing}
-          >
-            <Sparkles className={cn("w-5 h-5", isAnalyzing && "animate-pulse text-purple-400")} />
-            <span>{isAnalyzing ? "Analyzing..." : "Mood"}</span>
           </Button>
         </div>
       </div>
