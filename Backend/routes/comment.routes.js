@@ -4,11 +4,11 @@ import { addComment, deleteComment, getVideoComments, updateComment } from "../c
 
 const router = Router();
 
-//apply jwt verification to ALL comment routes
-router.use(verifyJWT);
-
-//GET - Get all comments of a video
+//GET - Get all comments of a video (public, no auth required)
 router.route("/:videoId").get(getVideoComments);
+
+//all routes below require auth
+router.use(verifyJWT);
 
 //POST - create a comment
 router.route("/:videoId").post(addComment);

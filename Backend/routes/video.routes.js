@@ -19,7 +19,10 @@ router.route("/").get(getAllVideos); //Get all published videos (public)
 router.route("/user").get(optionalJWT, getAllUserVideos); //Get all videos of a user - shows drafts only to owner
 router.route("/webhook/cloudinary").post(cloudinaryWebhook); // Webhook from Cloudinary for HLS
 
-//all video routes require auth
+//GET single video by ID - public, but auth is optional (for isLiked / isSubscribed)
+router.route("/:videoId").get(optionalJWT, getVideoById);
+
+//all routes below require auth
 router.use(verifyJWT);
 
 //Publish a new video (upload video + thumbnail)
@@ -30,9 +33,6 @@ router.route("/").post(
   ]),
   publishAVideo
 );
-
-//GET single video by ID (with view count , likes , subscribe status)
-router.route("/:videoId").get(getVideoById);
 
 //UPDATE video Details (title , description , thumbnail)
 router.route("/:videoId").patch(upload.single("thumbnail"), updateVideo);

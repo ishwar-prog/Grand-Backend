@@ -268,12 +268,14 @@ const getVideoById = asyncHandler(async (req, res) => {
   const videoCheck = await Video.findById(videoId).select('owner isPublished');
   if (!videoCheck) throw new ApiError(404, "Video not found");
   
-  const isOwner = videoCheck.owner.toString() === req.user._id.toString();
+  const isOwner = req.user
+    ? videoCheck.owner.toString() === req.user._id.toString()
+    : false;
   if (!videoCheck.isPublished && !isOwner) throw new ApiError(403, "This video is not available");
 
-  //Increment view count and add to watch history (only for published videos)
+  //Increment view count and add to watch history (only for published videos, only for logged-in users)
   //Check if video is already at top of watch history to prevent duplicate view counts
-  if (videoCheck.isPublished) {
+  if (videoCheck.isPublished && req.user) {
     const user = await User.findById(req.user._id).select('watchHistory');
     const recentlyWatched = user?.watchHistory?.[0]?.toString() === videoId;
     
@@ -293,7 +295,13 @@ const getVideoById = asyncHandler(async (req, res) => {
         { $push: { watchHistory: { $each: [new mongoose.Types.ObjectId(videoId)], $position: 0 } } }
       );
     }
+  } else if (videoCheck.isPublished) {
+    // Guest view — still count the view but don't update watch history
+    await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
   }
+
+  // Use a dummy ObjectId when guest so $in checks in the aggregate return false
+  const userId = req.user?._id ?? new mongoose.Types.ObjectId("000000000000000000000000");
 
   const video = await Video.aggregate([
     {
@@ -333,7 +341,7 @@ const getVideoById = asyncHandler(async (req, res) => {
           $cond: {
             if: {
               $in: [
-                new mongoose.Types.ObjectId(req.user._id),
+                userId,
                 {
                   $map: {
                     input: "$likes",
@@ -358,7 +366,7 @@ const getVideoById = asyncHandler(async (req, res) => {
             $cond: {
               if: {
                 $in: [
-                  new mongoose.Types.ObjectId(req.user._id),
+                  userId,
                   {
                     $map: {
                       input: "$subscribers",
