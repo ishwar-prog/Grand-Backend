@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import VideoUploadModal from './VideoUploadModal';
+import TweetModal from '../tweet/TweetModal';
 import { cn } from '../../utils/cn';
 
 const AppLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [dockHighlight, setDockHighlight] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
 
   // Handle responsive sidebar state
   useEffect(() => {
@@ -42,9 +46,16 @@ const AppLayout = ({ children }) => {
         isSidebarOpen={isSidebarOpen}
         isMobile={isMobile}
         onMobileMenuTap={triggerDockHighlight}
+        onOpenUpload={() => setIsUploadModalOpen(true)}
+        onOpenTweet={() => setIsTweetModalOpen(true)}
       />
       
-      <Sidebar isOpen={isSidebarOpen} dockHighlight={dockHighlight} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        dockHighlight={dockHighlight}
+        onOpenUpload={() => setIsUploadModalOpen(true)}
+        onOpenTweet={() => setIsTweetModalOpen(true)}
+      />
 
       <motion.main
         animate={{ 
@@ -63,6 +74,17 @@ const AppLayout = ({ children }) => {
           {children}
         </div>
       </motion.main>
+
+      <VideoUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onSuccess={() => window.location.reload()}
+      />
+      <TweetModal
+        isOpen={isTweetModalOpen}
+        onClose={() => setIsTweetModalOpen(false)}
+        onSuccess={() => {}}
+      />
     </div>
   );
 };

@@ -17,14 +17,12 @@ import {
 import useAuth from '../../hooks/useAuth';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import VideoUploadModal from './VideoUploadModal';
-import TweetModal from '../tweet/TweetModal';
 import NotificationDropdown from './NotificationDropdown';
 import { getAvatarUrl } from '../../utils/formatters';
 import { cn } from '../../utils/cn';
 import { getAllVideos } from '../../services/videoService';
 
-const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => {
+const Header = ({ toggleSidebar, onOpenUpload, onOpenTweet }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,8 +30,6 @@ const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
   const searchRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -78,28 +74,24 @@ const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => 
   return (
     <>
       <header className="fixed top-0 left-0 right-0 h-16 bg-[#0f0f10]/80 backdrop-blur-xl border-b border-[#27272a] z-50 px-4 flex items-center justify-between">
-        {/* Left: Logo & Menu */}
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => {
-              if (isMobile) {
-                onMobileMenuTap?.();
-              } else {
-                toggleSidebar();
-              }
-            }}
-            className="flex"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
+        {/* Left: Logo only on mobile */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Menu button — desktop only */}
+          <div className="hidden md:flex">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          </div>
           
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center gap-2 group">
             <img 
               src="/Logo.svg" 
               alt="Streamora" 
-              className="w-10 h-10 object-contain rounded-2xl"
+              className="w-9 h-9 object-contain rounded-2xl"
             />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden sm:block">
               Streamora
@@ -107,8 +99,8 @@ const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => 
           </Link>
         </div>
 
-        {/* Center: Search */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-4 relative" ref={searchRef}>
+        {/* Search — always visible */}
+        <form onSubmit={handleSearch} className="flex flex-1 max-w-xl mx-3 md:mx-4 relative" ref={searchRef}>
           <div className="relative w-full group">
             <Input
               type="text"
@@ -148,22 +140,27 @@ const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => 
         </form>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 shrink-0">
           {isAuthenticated ? (
             <>
-              <Button 
-                variant="ghost" 
-                size="icon"                 onClick={() => setIsTweetModalOpen(true)}
-              >
-                <MessageSquarePlus className="w-5 h-5" />
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon"                 onClick={() => setIsUploadModalOpen(true)}
-              >
-                <Upload className="w-5 h-5" />
-              </Button>
+              {/* Upload & Tweet — desktop only */}
+              <div className="hidden md:flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => onOpenTweet?.()}
+                >
+                  <MessageSquarePlus className="w-5 h-5" />
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => onOpenUpload?.()}
+                >
+                  <Upload className="w-5 h-5" />
+                </Button>
+              </div>
               
               <NotificationDropdown />
 
@@ -238,20 +235,6 @@ const Header = ({ toggleSidebar, isSidebarOpen, isMobile, onMobileMenuTap }) => 
         </div>
       </header>
 
-      <VideoUploadModal 
-        isOpen={isUploadModalOpen} 
-        onClose={() => setIsUploadModalOpen(false)}
-        onSuccess={() => {
-          // Refresh videos or show success toast
-          window.location.reload(); // Simple refresh for now
-        }}
-      />
-
-      <TweetModal
-        isOpen={isTweetModalOpen}
-        onClose={() => setIsTweetModalOpen(false)}
-        onSuccess={() => {}}
-      />
     </>
   );
 };

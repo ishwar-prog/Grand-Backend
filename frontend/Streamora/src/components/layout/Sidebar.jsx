@@ -11,11 +11,12 @@ import {
   ThumbsUp,
   Search,
   X,
-  MessageSquare
+  MessageSquare,
+  Plus,
+  Upload,
+  MessageSquarePlus
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { getAllVideos } from '../../services/videoService';
-import Input from '../ui/Input';
 
 const navItems = [
   { icon: Home, label: 'Home', path: '/', color: 'from-blue-500 to-blue-600', activeColor: 'bg-blue-500/20', hoverColor: 'hover:bg-blue-500/10', textColor: 'text-blue-400', borderColor: 'border-blue-500' },
@@ -27,19 +28,19 @@ const navItems = [
   { icon: ListVideo, label: 'Playlists', path: '/playlists', color: 'from-amber-500 to-orange-500', activeColor: 'bg-amber-500/20', hoverColor: 'hover:bg-amber-500/10', textColor: 'text-amber-400', borderColor: 'border-amber-500' },
 ];
 
-// Mobile dock items with colors - Search in center position
+// Mobile dock items - + in center position
 const mobileItems = [
   { id: 'home', icon: Home, label: 'Home', path: '/', color: 'bg-gradient-to-br from-blue-500 to-blue-600' },
   { id: 'trending', icon: Flame, label: 'Trending', path: '/trending', color: 'bg-gradient-to-br from-orange-500 to-red-500' },
   { id: 'community', icon: MessageSquare, label: 'Community', path: '/community', color: 'bg-gradient-to-br from-purple-500 to-pink-500' },
-  { id: 'search', icon: Search, label: 'Search', path: null, color: 'bg-gradient-to-br from-cyan-500 to-blue-500' },
+  { id: 'plus', icon: Plus, label: 'Create', path: null, isPlus: true, color: 'bg-gradient-to-br from-violet-500 to-purple-600' },
   { id: 'playlists', icon: ListVideo, label: 'Playlists', path: '/playlists', color: 'bg-gradient-to-br from-amber-500 to-orange-500' },
   { id: 'history', icon: History, label: 'History', path: '/history', color: 'bg-gradient-to-br from-gray-500 to-gray-600' },
   { id: 'liked', icon: ThumbsUp, label: 'Liked', path: '/liked', color: 'bg-gradient-to-br from-green-500 to-emerald-500' },
 ];
 
 // Dock Icon Component for Mobile with touch-based expansion
-function DockIcon({ item, mouseX, onClick, isActive, touchedIndex, index }) {
+function DockIcon({ item, mouseX, onClick, isActive, touchedIndex, index, isMenuOpen }) {
   const ref = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
   
@@ -100,6 +101,7 @@ function DockIcon({ item, mouseX, onClick, isActive, touchedIndex, index }) {
           className="flex items-center justify-center"
           animate={{
             scale: isTouched ? 1.1 : isHovered ? 1.15 : 1,
+            rotate: item.isPlus ? (isMenuOpen ? 45 : 0) : 0,
           }}
           transition={{
             type: "spring",
@@ -155,33 +157,13 @@ function DockIcon({ item, mouseX, onClick, isActive, touchedIndex, index }) {
   );
 }
 
-const Sidebar = ({ isOpen, dockHighlight }) => {
+const Sidebar = ({ isOpen, dockHighlight, onOpenUpload, onOpenTweet }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileSearch, setMobileSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [touchedIndex, setTouchedIndex] = useState(null);
   const mouseX = useMotionValue(Infinity);
   const touchTimeoutRef = useRef(null);
-
-  const handleMobileSearch = (query) => {
-    if (query.trim()) {
-      navigate(`/search?q=${encodeURIComponent(query)}`);
-      setMobileSearch(false);
-      setSearchQuery('');
-      setSuggestions([]);
-    }
-  };
-
-  const handleSearchChange = async (val) => {
-    setSearchQuery(val);
-    if (!val.trim()) { setSuggestions([]); return; }
-    try {
-      const res = await getAllVideos({ query: val, limit: 5, sortBy: 'views' });
-      setSuggestions([...new Set((res?.data?.docs || []).map(v => v.title))].slice(0, 5));
-    } catch { setSuggestions([]); }
-  };
 
   const handleDockItemClick = (item, index) => {
     // Set touched state for expansion animation
@@ -197,9 +179,10 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
       setTouchedIndex(null);
     }, 300);
     
-    if (item.path === null) {
-      setMobileSearch(true);
+    if (item.isPlus) {
+      setShowPlusMenu(prev => !prev);
     } else {
+      setShowPlusMenu(false);
       navigate(item.path);
     }
   };
@@ -334,6 +317,51 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
           )}
         </AnimatePresence>
         
+        {/* Dismiss overlay when plus menu is open */}
+        <AnimatePresence>
+          {showPlusMenu && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40"
+              onClick={() => setShowPlusMenu(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Plus create menu */}
+        <AnimatePresence>
+          {showPlusMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 bg-[#1c1c1e]/90 backdrop-blur-2xl border border-white/[0.15] rounded-2xl p-3 shadow-2xl min-w-[180px]"
+            >
+              <button
+                onClick={() => { setShowPlusMenu(false); onOpenUpload?.(); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium hover:bg-white/10 active:bg-white/20 transition-colors"
+              >
+                <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Upload className="w-4 h-4 text-white" />
+                </span>
+                Upload Video
+              </button>
+              <button
+                onClick={() => { setShowPlusMenu(false); onOpenTweet?.(); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium hover:bg-white/10 active:bg-white/20 transition-colors"
+              >
+                <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                  <MessageSquarePlus className="w-4 h-4 text-white" />
+                </span>
+                New Post
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {mobileItems.map((item, index) => (
           <DockIcon 
             key={item.id} 
@@ -344,36 +372,11 @@ const Sidebar = ({ isOpen, dockHighlight }) => {
             touchedIndex={touchedIndex}
             onClick={() => handleDockItemClick(item, index)}
             isActive={item.path && location.pathname === item.path}
+            isMenuOpen={item.isPlus && showPlusMenu}
           />
         ))}
       </motion.div>
 
-      {/* Mobile Search Modal */}
-      <AnimatePresence>
-        {mobileSearch && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileSearch(false)} className="fixed inset-0 bg-black/80 z-[60] md:hidden" />
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 right-0 bg-[#1c1c1e] rounded-t-3xl z-[70] p-4 pb-8 md:hidden">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-semibold">Search</h3>
-                <button onClick={() => setMobileSearch(false)} className="p-2 hover:bg-[#27272a] rounded-full"><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); handleMobileSearch(searchQuery); }}>
-                <Input value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Search videos..." autoFocus className="bg-[#0f0f10]" />
-              </form>
-              {suggestions.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {suggestions.map((title, i) => (
-                    <button key={i} onClick={() => handleMobileSearch(title)} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-[#27272a] rounded-xl text-left">
-                      <Search className="w-4 h-4 text-gray-500" />{title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 };
