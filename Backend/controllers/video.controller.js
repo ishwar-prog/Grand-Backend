@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { deleteOnCloudinary, uploadToCloudinary } from "../utils/cloudinary.js";
+import { deleteOnCloudinary, uploadToCloudinary, uploadVideoAsHLS } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   //todo : get all videos based on query , sort , pagination
@@ -50,6 +50,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         _id: 1,
         title: 1,
         thumbnail: 1,
+        hlsUrl: 1,
         views: { $ifNull: ["$views", 0] }, //views is number
         duration: 1,
         isPublished: 1,
@@ -144,6 +145,7 @@ const getAllUserVideos = asyncHandler(async (req, res) => {
         title: 1,
         description: 1,
         thumbnail: 1,
+        hlsUrl: 1,
         duration: 1,
         views: 1,
         isPublished: 1,
@@ -192,8 +194,10 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
   try {
     // Upload video first (larger file, more likely to fail)
-    videoFile = await uploadToCloudinary(videoLocalPath);
-    if (!videoFile?.url) {
+    videoFile = await uploadVideoAsHLS(videoLocalPath);
+    
+    // Check if both secure_url and url are missing
+    if (!videoFile || !videoFile.secure_url) {
       throw new ApiError(500, "Failed to upload video to cloud storage");
     }
 
@@ -208,13 +212,14 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
     // Create video document
     const video = await Video.create({
-      videoFile: videoFile.url,
-      thumbnail: thumbnail?.url || "",
+      videoFile: videoFile.secure_url,
+      thumbnail: thumbnail?.secure_url || thumbnail?.url || "",
       owner: req.user._id,
       title: title.trim(),
       description: description?.trim() || "",
       duration: videoFile.duration || 0,
       isPublished: isPublished === 'true' || isPublished === true,
+      hlsUrl: videoFile?.eager?.[0]?.secure_url || "", // Might be empty if async
     });
 
     return res
@@ -225,17 +230,19 @@ const publishAVideo = asyncHandler(async (req, res) => {
     // Cleanup: Delete uploaded files from Cloudinary if video creation fails
     const cleanupPromises = [];
     
-    if (videoFile?.url) {
+    if (videoFile?.secure_url) {
       cleanupPromises.push(
-        deleteOnCloudinary(videoFile.url, "video").catch(err => 
+        deleteOnCloudinary(videoFile.secure_url, "video").catch(err => 
           console.error("Failed to cleanup video from Cloudinary:", err.message)
         )
       );
     }
     
-    if (thumbnail?.url) {
+    // We try secure_url first, then fallback to url just in case
+    const thumbUrl = thumbnail?.secure_url || thumbnail?.url;
+    if (thumbUrl) {
       cleanupPromises.push(
-        deleteOnCloudinary(thumbnail.url, "image").catch(err => 
+        deleteOnCloudinary(thumbUrl, "image").catch(err => 
           console.error("Failed to cleanup thumbnail from Cloudinary:", err.message)
         )
       );
@@ -373,6 +380,7 @@ const getVideoById = asyncHandler(async (req, res) => {
         title: 1,
         description: 1,
         videoFile: 1,
+        hlsUrl: 1,
         thumbnail: 1,
         duration: 1,
         views: "$viewsCount",
@@ -510,6 +518,33 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     );
 });
 
+const cloudinaryWebhook = asyncHandler(async (req, res) => {
+  // Cloudinary sends a POST request with the transformation result.
+  const { notification_type, eager, public_id } = req.body;
+
+  if (notification_type === "upload" && eager && eager.length > 0) {
+    // Find the HLS URL from the eager transformations
+    const hlsData = eager.find((t) => t.format === "m3u8" || t.secure_url.endsWith(".m3u8"));
+    
+    if (hlsData && hlsData.secure_url) {
+      // The video model stores videoFile as a full URL, e.g., https://.../upload/v123/public_id.mp4
+      // We can find the video that contains the matching public_id.
+      await Video.findOneAndUpdate(
+        { videoFile: { $regex: public_id } },
+        {
+          $set: {
+            hlsUrl: hlsData.secure_url,
+          }
+        }
+      );
+      console.log(`Updated HLS Webhook for public_id: ${public_id}`);
+    }
+  }
+
+  // Cloudinary expects a 200 OK
+  return res.status(200).send("Webhook received");
+});
+
 export {
   getAllVideos,
   getAllUserVideos,
@@ -518,4 +553,5 @@ export {
   updateVideo,
   deleteVideo,
   togglePublishStatus,
+  cloudinaryWebhook,
 };

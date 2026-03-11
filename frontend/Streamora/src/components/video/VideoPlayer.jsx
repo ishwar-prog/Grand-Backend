@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { cn } from '../../utils/cn';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward, Settings } from 'lucide-react';
+import Hls from 'hls.js';
 
 const GENRE_COLORS = {
   horror: '#1a1a1a', funny: '#FACC15', cartoon: '#EC4899', action: '#EF4444', war: '#DC2626',
@@ -10,22 +11,72 @@ const GENRE_COLORS = {
 };
 
 const GENRE_LABELS = {
-  horror: '👻 Horror', funny: '😂 Funny', cartoon: '🎨 Cartoon', action: '🔥 Action', war: '⚔️ War',
-  military: '🎖️ Military', music: '🎵 Music', chill: '😌 Chill', relaxing: '🧘 Relaxing',
-  documentary: '🎬 Documentary', nature: '🌿 Nature', educational: '📚 Educational', anime: '⛩️ Anime',
-  coding: '💻 Coding', tech: '🔧 Tech', tutorial: '📖 Tutorial', gaming: '🎮 Gaming',
-  sports: '⚽ Sports', news: '📰 News', other: '🎥 Video'
+  horror: 'ðŸ‘» Horror', funny: 'ðŸ˜‚ Funny', cartoon: 'ðŸŽ¨ Cartoon', action: 'ðŸ”¥ Action', war: 'âš”ï¸ War',
+  military: 'ðŸŽ–ï¸ Military', music: 'ðŸŽµ Music', chill: 'ðŸ˜Œ Chill', relaxing: 'ðŸ§˜ Relaxing',
+  documentary: 'ðŸŽ¬ Documentary', nature: 'ðŸŒ¿ Nature', educational: 'ðŸ“š Educational', anime: 'â›©ï¸ Anime',
+  coding: 'ðŸ’» Coding', tech: 'ðŸ”§ Tech', tutorial: 'ðŸ“– Tutorial', gaming: 'ðŸŽ® Gaming',
+  sports: 'âš½ Sports', news: 'ðŸ“° News', other: 'ðŸŽ¥ Video'
 };
 
 const formatTime = (s) => !s || isNaN(s) ? '0:00' : `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 
-const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenre = null }) => {
+const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, videoGenre = null }) => {
   const videoRef = useRef(null), containerRef = useRef(null), progressRef = useRef(null), hideTimeout = useRef(null);
+  const hlsRef = useRef(null); // Persistent HLS instance for quality control
   const [state, setState] = useState({ playing: false, time: 0, duration: 0, volume: 1, muted: false, fullscreen: false, controls: true, hovering: false, hoverTime: 0, buffered: 0 });
   const [doubleTap, setDoubleTap] = useState({ show: false, side: null, count: 0 });
-  
+  const [qualities, setQualities] = useState([]); // Available HLS quality levels
+  const [currentLevel, setCurrentLevel] = useState(-1); // -1 = Auto
+  const [showQuality, setShowQuality] = useState(false);
+
   const color = genreColor || GENRE_COLORS[videoGenre] || '#8B5CF6';
   const progress = state.duration ? (state.time / state.duration) * 100 : 0;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls;
+
+    if (hlsUrl && Hls.isSupported()) {
+      hls = new Hls({ capLevelToPlayerSize: true, maxBufferSize: 30 * 1000 * 1000 });
+      hlsRef.current = hls;
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        // Build quality label list from hls.levels
+        const levels = hls.levels.map((l, i) => ({
+          index: i,
+          label: l.height ? `${l.height}p` : `${Math.round((l.bitrate || 0) / 1000)}kbps`
+        }));
+        setQualities(levels);
+        setCurrentLevel(-1); // Default to Auto
+      });
+    } else if (hlsUrl && video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Native Apple HLS (Safari) â€” quality is handled by the browser natively
+      video.src = hlsUrl;
+    } else {
+      // MP4 fallback for legacy videos
+      video.src = videoSrc;
+    }
+
+    return () => {
+      if (hls) { hls.destroy(); hlsRef.current = null; }
+      setQualities([]);
+      setCurrentLevel(-1);
+    };
+  }, [hlsUrl, videoSrc]);
+
+  // Change quality level: -1 = Auto ABR, 0/1/2... = locked level
+  const setQuality = useCallback((level) => {
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = level;
+      setCurrentLevel(level);
+    }
+    setShowQuality(false);
+  }, []);
+
+  const qualityLabel = currentLevel === -1 ? 'Auto' : (qualities[currentLevel]?.label ?? 'Auto');
 
   useEffect(() => {
     const v = videoRef.current;
@@ -51,10 +102,13 @@ const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenr
   const resetHide = useCallback(() => {
     setState(s => ({ ...s, controls: true }));
     clearTimeout(hideTimeout.current);
-    if (state.playing) hideTimeout.current = setTimeout(() => setState(s => ({ ...s, controls: false })), 3000);
-  }, [state.playing]);
+    // Don't auto-hide controls while quality menu is open
+    if (state.playing && !showQuality) {
+      hideTimeout.current = setTimeout(() => setState(s => ({ ...s, controls: false })), 3000);
+    }
+  }, [state.playing, showQuality]);
 
-  useEffect(() => { resetHide(); return () => clearTimeout(hideTimeout.current); }, [state.playing, resetHide]);
+  useEffect(() => { resetHide(); return () => clearTimeout(hideTimeout.current); }, [state.playing, showQuality, resetHide]);
 
   const toggle = () => videoRef.current?.[videoRef.current.paused ? 'play' : 'pause']();
   const seek = (e) => { const r = progressRef.current?.getBoundingClientRect(); if (r) videoRef.current.currentTime = Math.max(0, Math.min(1, (e.clientX-r.left)/r.width)) * state.duration; };
@@ -78,8 +132,8 @@ const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenr
 
   return (
     <div className={cn("relative", className)}>
-      <div ref={containerRef} className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10" onMouseMove={resetHide} onMouseLeave={() => state.playing && setState(s => ({ ...s, controls: false }))}>
-        <video ref={videoRef} src={videoSrc} poster={poster} autoPlay playsInline className="w-full h-full object-contain cursor-pointer" onClick={toggle} onDoubleClick={toggleFs} />
+      <div ref={containerRef} className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10" onMouseMove={resetHide} onMouseLeave={() => { state.playing && setState(s => ({ ...s, controls: false })); setShowQuality(false); }}>
+        <video ref={videoRef} poster={poster} autoPlay playsInline className="w-full h-full object-contain cursor-pointer" onClick={toggle} onDoubleClick={toggleFs} />
 
         {/* Double-tap zones for 10s skip */}
         <div className="absolute inset-0 flex pointer-events-none">
@@ -121,7 +175,61 @@ const VideoPlayer = ({ videoSrc, poster, className, genreColor = null, videoGenr
               </div>
               <span className="text-white text-sm ml-2">{formatTime(state.time)} / {formatTime(state.duration)}</span>
             </div>
-            <button onClick={toggleFs} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10">{state.fullscreen ? <Minimize className="w-5 h-5 text-white" /> : <Maximize className="w-5 h-5 text-white" />}</button>
+
+            <div className="flex items-center gap-1">
+              {/* Quality switcher â€” only visible when HLS is active with multiple levels */}
+              {qualities.length > 1 && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowQuality(v => !v); }}
+                    className="flex items-center gap-1.5 px-2.5 h-8 rounded-full hover:bg-white/10 transition-colors"
+                    title="Quality"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-white" />
+                    <span className="text-white text-xs font-semibold">{qualityLabel}</span>
+                  </button>
+
+                  {showQuality && (
+                    <div className="absolute bottom-10 right-0 z-50 min-w-[110px] rounded-xl overflow-hidden backdrop-blur-xl border border-white/10 shadow-2xl" style={{ backgroundColor: 'rgba(15,15,20,0.92)' }}>
+                      <div className="px-3 py-2 border-b border-white/10">
+                        <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Quality</span>
+                      </div>
+                      {/* Auto option */}
+                      <button
+                        onClick={() => setQuality(-1)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-white/10",
+                          currentLevel === -1 ? "text-white font-semibold" : "text-white/70"
+                        )}
+                      >
+                        <span>Auto</span>
+                        {currentLevel === -1 && (
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                        )}
+                      </button>
+                      {/* Per-level options, highest quality first */}
+                      {[...qualities].reverse().map((q) => (
+                        <button
+                          key={q.index}
+                          onClick={() => setQuality(q.index)}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-white/10",
+                            currentLevel === q.index ? "text-white font-semibold" : "text-white/70"
+                          )}
+                        >
+                          <span>{q.label}</span>
+                          {currentLevel === q.index && (
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button onClick={toggleFs} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10">{state.fullscreen ? <Minimize className="w-5 h-5 text-white" /> : <Maximize className="w-5 h-5 text-white" />}</button>
+            </div>
           </div>
         </div>
       </div>

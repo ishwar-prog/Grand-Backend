@@ -7,6 +7,7 @@ import {
   publishAVideo,
   togglePublishStatus,
   updateVideo,
+  cloudinaryWebhook
 } from "../controllers/video.controller.js";
 import { verifyJWT, optionalJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -16,6 +17,7 @@ const router = Router();
 //PUBLIC routes (no auth required)
 router.route("/").get(getAllVideos); //Get all published videos (public)
 router.route("/user").get(optionalJWT, getAllUserVideos); //Get all videos of a user - shows drafts only to owner
+router.route("/webhook/cloudinary").post(cloudinaryWebhook); // Webhook from Cloudinary for HLS
 
 //all video routes require auth
 router.use(verifyJWT);
@@ -38,7 +40,7 @@ router.route("/:videoId").patch(upload.single("thumbnail"), updateVideo);
 //Delete a video(only owner)
 router.route("/:videoId").delete(deleteVideo);
 
-//Toggle publish status (public -> pvt/draft)
+// Toggle publish status (public -> pvt/draft)
 router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
 
 export default router;

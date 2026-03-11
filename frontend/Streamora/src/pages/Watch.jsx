@@ -154,6 +154,7 @@ const Watch = () => {
       <div className="lg:col-span-2 flex flex-col gap-6">
         <VideoPlayer 
           videoSrc={video.videoFile} 
+          hlsUrl={video.hlsUrl}
           poster={video.thumbnail} 
           moodSegments={moodSegments}
           genreColor={genreColor}

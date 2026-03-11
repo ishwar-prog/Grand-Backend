@@ -48,6 +48,63 @@ const uploadToCloudinary = async (localfilepath)=>{
     }
 }
 
+const uploadVideoAsHLS = async (localfilepath) => {
+    try {
+        if (!localfilepath || !fs.existsSync(localfilepath)) {
+            return null;
+        }
+
+        const uploadOptions = {
+            resource_type: "video",
+            folder: "video-app",
+            use_filename: false,
+            unique_filename: true,
+            eager: [
+                {
+                    streaming_profile: "hd", // Cloudinary built-in profile
+                    format: "m3u8"
+                }
+            ],
+            eager_async: true,
+        };
+
+        // Only attach notification_url if it's set in the environment
+        if (process.env.CLOUDINARY_WEBHOOK_URL) {
+            uploadOptions.notification_url = process.env.CLOUDINARY_WEBHOOK_URL;
+        }
+
+        console.log("Starting video upload to Cloudinary for HLS...", localfilepath);
+        // In Cloudinary SDK v2, uploader.upload handles large files automatically via chunked uploads.
+        // upload_large was changed to return a Stream in v2, so we must use upload() directly.
+        const response = await cloudinary.uploader.upload(localfilepath, uploadOptions);
+        
+        if (!response || !response.secure_url) {
+            console.error("Cloudinary returned an invalid response:", response);
+            return null;
+        }
+        
+        console.log("Cloudinary upload successful:", response.secure_url);
+
+        // Delete local file after successful upload
+        await fs.promises.unlink(localfilepath);
+
+        console.log("Video uploaded. HLS processing in background:", response.secure_url);
+        return response;
+
+    } catch (error) {
+        // cleanup on error
+        try {
+            if (localfilepath && fs.existsSync(localfilepath)) {
+                await fs.promises.unlink(localfilepath);
+            }
+        } catch (unlinkError) {
+            console.error("Failed to delete local video file", unlinkError.message);
+        }
+        console.error("Failed to upload video as HLS to Cloudinary. Full Error:", error);
+        return null;
+    }
+}
+
     // delete file from cloudinary using url
     // @param {string} fileUrl - cloudinary public url
     // @param {string} resourceType - "image" | "video" | "raw"(dafault: "image")
@@ -90,4 +147,4 @@ const uploadToCloudinary = async (localfilepath)=>{
 
 
 
-export { uploadToCloudinary, deleteOnCloudinary };
+export { uploadToCloudinary, uploadVideoAsHLS, deleteOnCloudinary };
