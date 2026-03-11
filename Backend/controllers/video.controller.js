@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { deleteOnCloudinary, uploadToCloudinary, uploadVideoAsHLS } from "../utils/cloudinary.js";
+import { deleteOnCloudinary, uploadToCloudinary, uploadVideoAsHLS, getAutoThumbnailUrl } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   //todo : get all videos based on query , sort , pagination
@@ -201,19 +201,23 @@ const publishAVideo = asyncHandler(async (req, res) => {
       throw new ApiError(500, "Failed to upload video to cloud storage");
     }
 
-    // Upload thumbnail if provided
+    // Upload thumbnail if provided, otherwise fall back to auto-generated frame
+    let thumbnailUrl = '';
     if (thumbnailLocalPath) {
       thumbnail = await uploadToCloudinary(thumbnailLocalPath);
-      // Don't fail if thumbnail upload fails, just log it
-      if (!thumbnail?.url) {
-        console.warn("Thumbnail upload failed, proceeding without thumbnail");
+      thumbnailUrl = thumbnail?.secure_url || thumbnail?.url || '';
+      if (!thumbnailUrl) {
+        console.warn("Thumbnail upload failed, will use auto-generated thumbnail");
       }
+    }
+    if (!thumbnailUrl) {
+      thumbnailUrl = getAutoThumbnailUrl(videoFile.secure_url);
     }
 
     // Create video document
     const video = await Video.create({
       videoFile: videoFile.secure_url,
-      thumbnail: thumbnail?.secure_url || thumbnail?.url || "",
+      thumbnail: thumbnailUrl,
       owner: req.user._id,
       title: title.trim(),
       description: description?.trim() || "",

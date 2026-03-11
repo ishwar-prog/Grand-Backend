@@ -75,7 +75,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!files.video || !files.thumbnail || !details.title.trim()) {
+    if (!files.video || !details.title.trim()) {
       setError('Please fill in all required fields');
       return;
     }
@@ -279,7 +279,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Thumbnail</label>
+                        <label className="text-sm font-medium text-gray-300">Thumbnail <span className="text-gray-500 font-normal">(optional)</span></label>
                         <div 
                           onClick={() => thumbnailInputRef.current?.click()}
                           className="border border-dashed border-[#27272a] rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-[#27272a]/50 transition-colors"
@@ -297,7 +297,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                           )}
                           <div className="flex-1">
                             <p className="text-sm text-white">Upload thumbnail</p>
-                            <p className="text-xs text-gray-500">1280x720 recommended</p>
+                            <p className="text-xs text-gray-500">Auto-generated if skipped · 1280x720 recommended</p>
                           </div>
                         </div>
                         <input 
@@ -315,7 +315,7 @@ const VideoUploadModal = ({ isOpen, onClose, onSuccess }) => {
                     <Button type="button" variant="ghost" onClick={loading ? handleCancel : handleClose}>
                       {loading ? 'Cancel Upload' : 'Cancel'}
                     </Button>
-                    <Button type="submit" isLoading={loading} disabled={!details.title.trim() || !files.thumbnail}>
+                    <Button type="submit" isLoading={loading} disabled={!details.title.trim()}>
                       {getUploadButtonText()}
                     </Button>
                   </div>

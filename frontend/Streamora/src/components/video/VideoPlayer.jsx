@@ -10,14 +10,6 @@ const GENRE_COLORS = {
   tutorial: '#78716C', gaming: '#8B5CF6', sports: '#14B8A6', news: '#64748B', other: '#8B5CF6'
 };
 
-const GENRE_LABELS = {
-  horror: 'ðŸ‘» Horror', funny: 'ðŸ˜‚ Funny', cartoon: 'ðŸŽ¨ Cartoon', action: 'ðŸ”¥ Action', war: 'âš”ï¸ War',
-  military: 'ðŸŽ–ï¸ Military', music: 'ðŸŽµ Music', chill: 'ðŸ˜Œ Chill', relaxing: 'ðŸ§˜ Relaxing',
-  documentary: 'ðŸŽ¬ Documentary', nature: 'ðŸŒ¿ Nature', educational: 'ðŸ“š Educational', anime: 'â›©ï¸ Anime',
-  coding: 'ðŸ’» Coding', tech: 'ðŸ”§ Tech', tutorial: 'ðŸ“– Tutorial', gaming: 'ðŸŽ® Gaming',
-  sports: 'âš½ Sports', news: 'ðŸ“° News', other: 'ðŸŽ¥ Video'
-};
-
 const formatTime = (s) => !s || isNaN(s) ? '0:00' : `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 
 const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, videoGenre = null }) => {
@@ -152,8 +144,6 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
           </div>
         )}
 
-        {videoGenre && <div className={cn("absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 backdrop-blur-md transition-opacity", state.controls ? "opacity-100" : "opacity-0")} style={{ backgroundColor: `${color}30`, color, border: `1px solid ${color}50` }}><span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }} />{GENRE_LABELS[videoGenre] || videoGenre}</div>}
-
         {!state.playing && <div className="absolute inset-0 flex items-center justify-center" onClick={toggle}><div className="w-20 h-20 rounded-full flex items-center justify-center backdrop-blur-md cursor-pointer hover:scale-110 transition-transform" style={{ backgroundColor: `${color}40`, boxShadow: `0 0 40px ${color}60` }}><Play className="w-8 h-8 text-white ml-1" fill="white" /></div></div>}
 
         <div className={cn("absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-16 pb-4 px-4 transition-opacity", state.controls ? "opacity-100" : "opacity-0")}>
@@ -238,3 +228,5 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
 };
 
 export default VideoPlayer;
+
+

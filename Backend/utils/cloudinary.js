@@ -61,7 +61,7 @@ const uploadVideoAsHLS = async (localfilepath) => {
             unique_filename: true,
             eager: [
                 {
-                    streaming_profile: "hd", // Cloudinary built-in profile
+                    streaming_profile: "full_hd", // Cloudinary built-in profile
                     format: "m3u8"
                 }
             ],
@@ -147,4 +147,14 @@ const uploadVideoAsHLS = async (localfilepath) => {
 
 
 
-export { uploadToCloudinary, uploadVideoAsHLS, deleteOnCloudinary };
+// Derives a thumbnail from a Cloudinary video URL on-the-fly.
+// Uses Cloudinary's `so_5` transformation to capture the frame at 5 seconds.
+// No extra API call — the URL is generated and cached by Cloudinary's CDN on first access.
+const getAutoThumbnailUrl = (videoUrl) => {
+    if (!videoUrl) return '';
+    return videoUrl
+        .replace('/video/upload/', '/video/upload/so_5/')
+        .replace(/\.[^/.]+$/, '.jpg');
+};
+
+export { uploadToCloudinary, uploadVideoAsHLS, deleteOnCloudinary, getAutoThumbnailUrl };
