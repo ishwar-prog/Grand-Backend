@@ -66,7 +66,7 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
   // Change quality level: -1 = Auto ABR, 0/1/2... = locked level
   const setQuality = useCallback((level) => {
     if (hlsRef.current) {
-      hlsRef.current.currentLevel = level;
+      hlsRef.current.nextLevel = level;
       setCurrentLevel(level);
     }
     setShowQuality(false);
