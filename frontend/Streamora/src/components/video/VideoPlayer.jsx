@@ -90,7 +90,14 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
   }, []);
 
   useEffect(() => {
-    const h = () => setState(s => ({ ...s, fullscreen: !!document.fullscreenElement }));
+    const h = () => {
+      const isFs = !!document.fullscreenElement;
+      setState(s => ({ ...s, fullscreen: isFs }));
+      // Unlock orientation if exiting fullscreen (e.g. via Esc key)
+      if (!isFs && window.screen?.orientation?.unlock) {
+        window.screen.orientation.unlock();
+      }
+    };
     document.addEventListener('fullscreenchange', h);
     return () => document.removeEventListener('fullscreenchange', h);
   }, []);
@@ -111,7 +118,29 @@ const VideoPlayer = ({ videoSrc, hlsUrl, poster, className, genreColor = null, v
   const skip = (s) => videoRef.current && (videoRef.current.currentTime = Math.max(0, Math.min(state.duration, videoRef.current.currentTime + s)));
   const toggleMute = () => videoRef.current && (videoRef.current.muted = !videoRef.current.muted);
   const setVol = (e) => { if (videoRef.current) { videoRef.current.volume = +e.target.value; videoRef.current.muted = +e.target.value === 0; }};
-  const toggleFs = () => !document.fullscreenElement ? containerRef.current?.requestFullscreen() : document.exitFullscreen();
+  const toggleFs = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+          if (window.screen?.orientation?.lock) {
+            await window.screen.orientation.lock('landscape').catch(() => {});
+          }
+        } else if (videoRef.current?.webkitEnterFullscreen) {
+          videoRef.current.webkitEnterFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+          if (window.screen?.orientation?.unlock) {
+            window.screen.orientation.unlock();
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Double-tap to seek (YouTube-style)
   const lastTap = useRef({ time: 0, side: null });
